@@ -27,13 +27,8 @@ jobs:
         java-version: '17'
         
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        api-level: 33
-        build-tools: 33.0.0
-        target: default
-        arch: x64
-        
+      uses: android-actions/setup-android@v2
+      
     - name: Cache Gradle dependencies
       uses: actions/cache@v3
       with:
@@ -44,37 +39,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
           
-    - name: Cache node modules
-      uses: actions/cache@v3
-      with:
-        path: node_modules
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
-          
     - name: Install dependencies
       run: npm ci
       
     - name: Make gradlew executable
       working-directory: ./android
-      run: chmod +x gradlew || true
+      run: chmod +x gradlew
       
-    - name: Verify Android setup
-      run: |
-        echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-        echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-        ls -la android/
-        ls -la android/gradle/wrapper/ || echo "Gradle wrapper files missing"
-        
     - name: Build APK
       working-directory: ./android
       env:
         ANDROID_HOME: ${{ env.ANDROID_HOME }}
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        GRADLE_OPTS: '-Dorg.gradle.daemon=false'
+        ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
       run: |
-        ./gradlew clean
-        ./gradlew assembleRelease --no-daemon --stacktrace --info
+        ./gradlew clean assembleRelease --no-daemon
         
     - name: Upload APK
       if: success()
