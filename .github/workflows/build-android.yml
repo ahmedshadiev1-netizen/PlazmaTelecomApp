@@ -1,1 +1,176 @@
+name: Build Android APK
 
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Find project directory
+      id: find_dir
+      run: |
+        if [ -d "PlazmaTelecomApp" ] && [ -f "PlazmaTelecomApp/package.json" ]; then
+          echo "PROJECT_DIR=PlazmaTelecomApp" >> $GITHUB_ENV
+          echo "dir=PlazmaTelecomApp" >> $GITHUB_OUTPUT
+        else
+          echo "PROJECT_DIR=." >> $GITHUB_ENV
+          echo "dir=." >> $GITHUB_OUTPUT
+        fi
+        echo "Project directory: $PROJECT_DIR"
+        
+    - name: Install dependencies
+      working-directory: ${{ env.PROJECT_DIR }}
+      run: |
+        echo "=== Installing dependencies ==="
+        echo "Working in: $(pwd)"
+        npm install --legacy-peer-deps
+        
+        echo "Verifying installation..."
+        [ -d "node_modules" ] || exit 1
+        [ -d "node_modules/react-native" ] || exit 1
+        echo "✓ Dependencies installed"
+        
+    - name: Prepare Android build
+      working-directory: ${{ env.PROJECT_DIR }}/android
+      run: |
+        echo "=== Preparing Android build ==="
+        chmod +x gradlew
+        
+        # Create keystore
+        if [ ! -f "app/debug.keystore" ]; then
+          echo "Creating debug keystore..."
+          keytool -genkeypair -v -storetype PKCS12 \
+            -keystore app/debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US" 2>&1
+        fi
+        
+    - name: Build APK
+      working-directory: ${{ env.PROJECT_DIR }}/android
+      env:
+        ANDROID_HOME: ${{ env.ANDROID_HOME }}
+        ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+        GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false'
+      run: |
+        set -e
+        
+        echo "=== Building Release APK ==="
+        echo "Working in: $(pwd)"
+        
+        echo "Testing Gradle..."
+        ./gradlew --version 2>&1
+        
+        echo "Cleaning..."
+        ./gradlew clean --no-daemon 2>&1 | tail -10 || true
+        
+        echo "Building APK (this may take 5-10 minutes)..."
+        ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log || {
+          echo ""
+          echo "========================================"
+          echo "          BUILD FAILED"
+          echo "========================================"
+          tail -300 build.log
+          grep -E "FAILED|FAILURE|error" build.log | tail -50
+          exit 1
+        }
+        
+        echo ""
+        echo "=== Build completed successfully ==="
+        echo ""
+        echo "=== Checking build outputs ==="
+        echo "Current directory: $(pwd)"
+        echo ""
+        echo "1. Checking if app/build directory exists:"
+        ls -la app/build/ 2>/dev/null || echo "app/build does not exist"
+        echo ""
+        echo "2. Looking for ALL files in app/build:"
+        find app/build -type f 2>/dev/null | head -50 || echo "No files found in app/build"
+        echo ""
+        echo "3. Looking for APK files specifically:"
+        find app/build -name "*.apk" 2>/dev/null || echo "No APK files found"
+        echo ""
+        echo "4. Checking outputs directory:"
+        ls -la app/build/outputs/ 2>/dev/null || echo "outputs directory does not exist"
+        echo ""
+        echo "5. Checking apk directory:"
+        ls -la app/build/outputs/apk/ 2>/dev/null || echo "apk directory does not exist"
+        echo ""
+        echo "6. Checking release directory:"
+        ls -la app/build/outputs/apk/release/ 2>/dev/null || echo "release directory does not exist"
+        echo ""
+        echo "7. Full directory tree of app/build:"
+        find app/build -type d 2>/dev/null | head -30 || echo "Cannot list directories"
+        
+    - name: Find APK
+      working-directory: ${{ env.PROJECT_DIR }}
+      id: find_apk
+      run: |
+        echo "=== Looking for APK ==="
+        echo "Working in: $(pwd)"
+        echo ""
+        
+        # Try multiple possible locations
+        APK_FOUND=""
+        
+        for path in \
+          "android/app/build/outputs/apk/release/app-release.apk" \
+          "android/app/build/outputs/apk/release/app-release-unsigned.apk" \
+          "android/app/build/outputs/apk/app-release.apk" \
+          "android/app/build/outputs/apk/debug/app-debug.apk"; do
+          if [ -f "$path" ]; then
+            echo "✓ APK found at: $path"
+            echo "apk_path=$path" >> $GITHUB_OUTPUT
+            ls -lh "$path"
+            APK_FOUND="yes"
+            break
+          else
+            echo "✗ Not found: $path"
+          fi
+        done
+        
+        if [ -z "$APK_FOUND" ]; then
+          echo ""
+          echo "✗ APK not found at expected paths"
+          echo ""
+          echo "Searching entire android directory for APK files:"
+          find android -name "*.apk" 2>/dev/null || echo "No APK files found anywhere"
+          echo ""
+          echo "Checking if android/app/build exists:"
+          ls -la android/app/build/ 2>/dev/null || echo "android/app/build does not exist"
+          echo ""
+          echo "All files in android/app/build:"
+          find android/app/build -type f 2>/dev/null | head -50 || echo "No files found"
+          exit 1
+        fi
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: ${{ env.PROJECT_DIR }}/${{ steps.find_apk.outputs.apk_path }}
+        retention-days: 30
