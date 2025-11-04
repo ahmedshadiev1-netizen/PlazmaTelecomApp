@@ -9,11 +9,13 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease",
         "image": "latest",
-        "withoutCredentials": false
+        "withoutCredentials": false,
+        "autoIncrement": false
       },
       "distribution": "internal",
       "env": {
-        "EXPO_NO_GIT_STATUS": "1"
+        "EXPO_NO_GIT_STATUS": "1",
+        "EXPO_NO_DOTENV": "1"
       }
     },
     "production": {
