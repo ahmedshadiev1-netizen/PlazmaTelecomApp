@@ -50,6 +50,12 @@ jobs:
           echo "Project directory: root"
         fi
         
+    - name: Check build configuration
+      working-directory: ${{ env.PROJECT_DIR }}
+      run: |
+        echo "Checking build configuration..."
+        bash check-build-config.sh || echo "Configuration check completed with warnings"
+        
     - name: Install dependencies
       working-directory: ${{ env.PROJECT_DIR }}
       run: |
