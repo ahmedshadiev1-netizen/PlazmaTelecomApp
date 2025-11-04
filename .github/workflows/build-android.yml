@@ -46,6 +46,16 @@ jobs:
       working-directory: ./android
       run: chmod +x gradlew
       
+    - name: Create debug keystore if missing
+      working-directory: ./android/app
+      run: |
+        if [ ! -f debug.keystore ]; then
+          echo "Creating debug keystore..."
+          keytool -genkeypair -v -storetype PKCS12 -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+        else
+          echo "Debug keystore already exists"
+        fi
+        
     - name: Build APK
       working-directory: ./android
       env:
@@ -54,22 +64,22 @@ jobs:
         GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false'
       run: |
         echo "Building APK..."
-        ./gradlew clean
-        ./gradlew assembleRelease --no-daemon --stacktrace || {
-          echo "Build failed, showing last 50 lines of error:"
-          tail -50 android/app/build/outputs/logs/*.log 2>/dev/null || echo "No log files found"
+        ./gradlew clean assembleRelease --no-daemon --stacktrace --info 2>&1 | tee build.log || {
+          echo "=== Build failed, showing error details ==="
+          tail -100 build.log || echo "No build log found"
           exit 1
         }
         
     - name: Check APK exists
       run: |
         if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
-          echo "APK file found!"
+          echo "✓ APK file found!"
           ls -lh android/app/build/outputs/apk/release/
+          echo "APK size: $(du -h android/app/build/outputs/apk/release/app-release.apk | cut -f1)"
         else
-          echo "APK file not found!"
+          echo "✗ APK file not found!"
           echo "Checking build outputs:"
-          find android/app/build/outputs -type f || echo "No output files found"
+          find android/app/build/outputs -type f 2>/dev/null | head -20 || echo "No output files found"
           exit 1
         fi
         
