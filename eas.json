@@ -8,9 +8,13 @@
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease",
-        "image": "latest"
+        "image": "latest",
+        "withoutCredentials": false
       },
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_NO_GIT_STATUS": "1"
+      }
     },
     "production": {
       "android": {
