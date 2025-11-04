@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     
     steps:
     - name: Checkout code
@@ -28,202 +28,107 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       
-    - name: Find project directory
-      id: find_dir
+    - name: Determine project directory
+      id: proj_dir
       run: |
-        echo "Current directory: $(pwd)"
-        echo "Listing root:"
-        ls -la | head -20
-        
         if [ -d "PlazmaTelecomApp" ] && [ -f "PlazmaTelecomApp/package.json" ]; then
+          echo "dir=PlazmaTelecomApp" >> $GITHUB_OUTPUT
           echo "PROJECT_DIR=PlazmaTelecomApp" >> $GITHUB_ENV
-          echo "Found project in PlazmaTelecomApp/"
-          cd PlazmaTelecomApp
         else
+          echo "dir=." >> $GITHUB_OUTPUT
           echo "PROJECT_DIR=." >> $GITHUB_ENV
-          echo "Project in root directory"
         fi
-        
         echo "Project directory: $PROJECT_DIR"
-        echo "Working in: $(pwd)"
-        echo "Files in project:"
-        ls -la | head -10
         
     - name: Install dependencies
       working-directory: ${{ env.PROJECT_DIR }}
       run: |
-        set -e
-        echo "=== Installing dependencies ==="
-        echo "Working in: $(pwd)"
-        echo "Node version: $(node --version)"
-        echo "NPM version: $(npm --version)"
+        echo "Working directory: $(pwd)"
+        echo "Node: $(node --version)"
+        echo "NPM: $(npm --version)"
         
-        if [ ! -f "package.json" ]; then
-          echo "ERROR: package.json not found!"
-          exit 1
-        fi
+        echo "Installing dependencies..."
+        npm install --legacy-peer-deps --verbose 2>&1 | tee npm.log
         
-        echo "Installing dependencies (this may take a few minutes)..."
-        npm install --legacy-peer-deps 2>&1 | tee npm-install.log || {
-          echo "npm install failed. Last 50 lines:"
-          tail -50 npm-install.log
-          exit 1
-        }
+        echo "Verifying node_modules..."
+        [ -d "node_modules" ] && echo "✓ node_modules exists" || (echo "✗ node_modules missing" && exit 1)
+        [ -d "node_modules/@react-native-community/cli-platform-android" ] && echo "✓ RN CLI found" || (echo "✗ RN CLI missing" && exit 1)
         
-        echo "✓ Dependencies installed"
-        echo "Checking node_modules:"
-        ls -la node_modules/ | head -5 || echo "node_modules not found!"
-        
-    - name: Verify Android project
+    - name: Verify project structure
       working-directory: ${{ env.PROJECT_DIR }}
       run: |
-        set -e
-        echo "=== Verifying Android project ==="
+        echo "=== Project Structure ==="
+        [ -d "android" ] || exit 1
+        [ -f "android/build.gradle" ] || exit 1
+        [ -f "android/app/build.gradle" ] || exit 1
+        [ -f "android/gradlew" ] || exit 1
+        [ -f "android/settings.gradle" ] || exit 1
+        echo "✓ All files present"
         
-        [ -d "android" ] || (echo "ERROR: android/ directory missing" && exit 1)
-        [ -f "android/build.gradle" ] || (echo "ERROR: android/build.gradle missing" && exit 1)
-        [ -f "android/app/build.gradle" ] || (echo "ERROR: android/app/build.gradle missing" && exit 1)
-        [ -f "android/gradlew" ] || (echo "ERROR: android/gradlew missing" && exit 1)
-        [ -f "android/settings.gradle" ] || (echo "ERROR: android/settings.gradle missing" && exit 1)
-        
-        echo "✓ All required Android files found"
-        
-        # Verify node_modules path in settings.gradle
-        echo "Checking settings.gradle:"
+        echo "=== Checking settings.gradle ==="
         cat android/settings.gradle
         
-    - name: Make gradlew executable
+    - name: Prepare Android build
       working-directory: ${{ env.PROJECT_DIR }}/android
       run: |
         chmod +x gradlew
-        [ -x gradlew ] && echo "✓ gradlew is executable" || (echo "✗ gradlew not executable" && exit 1)
         
-    - name: Create debug keystore
-      working-directory: ${{ env.PROJECT_DIR }}/android/app
-      run: |
-        if [ ! -f debug.keystore ]; then
-          echo "Creating debug keystore..."
+        # Create keystore if missing
+        if [ ! -f "app/debug.keystore" ]; then
           keytool -genkeypair -v -storetype PKCS12 \
-            -keystore debug.keystore \
+            -keystore app/debug.keystore \
             -storepass android \
             -alias androiddebugkey \
             -keypass android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US" 2>&1
-          echo "✓ Keystore created"
-        else
-          echo "✓ Keystore already exists"
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
         fi
-        
-    - name: Verify environment
-      run: |
-        echo "ANDROID_HOME: $ANDROID_HOME"
-        echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
-        echo "JAVA_HOME: $JAVA_HOME"
-        java -version
-        echo "✓ Environment verified"
-        
-    - name: Test Gradle wrapper
-      working-directory: ${{ env.PROJECT_DIR }}/android
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_HOME }}
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
-      run: |
-        echo "=== Testing Gradle ==="
-        echo "Current dir: $(pwd)"
-        ./gradlew --version 2>&1 || {
-          echo "Gradle version check failed"
-          exit 1
-        }
-        echo "✓ Gradle is working"
-        
-    - name: Clean build
-      working-directory: ${{ env.PROJECT_DIR }}/android
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_HOME }}
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
-        GRADLE_OPTS: '-Dorg.gradle.daemon=false'
-      run: |
-        echo "=== Cleaning ==="
-        ./gradlew clean --no-daemon 2>&1 | tee clean.log || {
-          echo "Clean had warnings, but continuing..."
-          tail -20 clean.log
-        }
         
     - name: Build APK
       working-directory: ${{ env.PROJECT_DIR }}/android
       env:
         ANDROID_HOME: ${{ env.ANDROID_HOME }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
-        GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false'
+        GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false'
       run: |
         set -e
-        echo "=== Building APK ==="
-        echo "Working in: $(pwd)"
-        echo "Environment:"
-        env | grep -E "(ANDROID|JAVA|GRADLE)" || true
         
-        echo "Starting build (this may take 5-10 minutes)..."
-        ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log || {
+        echo "=== Environment ==="
+        echo "ANDROID_HOME: $ANDROID_HOME"
+        echo "JAVA_HOME: $JAVA_HOME"
+        echo "Working in: $(pwd)"
+        
+        echo "=== Testing Gradle ==="
+        ./gradlew --version || exit 1
+        
+        echo "=== Cleaning ==="
+        ./gradlew clean --no-daemon || true
+        
+        echo "=== Building APK ==="
+        ./gradlew assembleRelease --no-daemon --stacktrace --info 2>&1 | tee build-full.log || {
           echo ""
-          echo "=========================================="
-          echo "BUILD FAILED - SHOWING ERROR DETAILS"
-          echo "=========================================="
+          echo "========================================"
+          echo "BUILD FAILED"
+          echo "========================================"
           echo ""
-          echo "Last 400 lines of build log:"
-          tail -400 build.log
+          echo "Full build log (last 500 lines):"
+          tail -500 build-full.log
           echo ""
-          echo "=========================================="
-          echo "Searching for specific errors:"
-          echo "=========================================="
+          echo "ERRORS:"
+          grep -i "error" build-full.log | tail -100
           echo ""
-          echo "--- ERRORS ---"
-          grep -i "error" build.log | tail -50 || echo "No 'error' found"
+          echo "FAILURES:"
+          grep -i "fail" build-full.log | tail -100
           echo ""
-          echo "--- FAILURES ---"
-          grep -i "fail" build.log | tail -50 || echo "No 'fail' found"
-          echo ""
-          echo "--- EXCEPTIONS ---"
-          grep -i "exception" build.log | tail -50 || echo "No 'exception' found"
-          echo ""
-          echo "--- TASK FAILURES ---"
-          grep -E "FAILED|FAILURE" build.log | tail -30 || echo "No task failures found"
-          echo ""
+          echo "EXCEPTIONS:"
+          grep -i "exception" build-full.log | tail -100
           exit 1
         }
         
-        echo ""
-        echo "=========================================="
-        echo "✓ BUILD SUCCEEDED"
-        echo "=========================================="
-        
-    - name: Find and verify APK
-      working-directory: ${{ env.PROJECT_DIR }}
-      run: |
-        echo "=== Looking for APK ==="
-        
-        APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
-        
-        if [ -f "$APK_PATH" ]; then
-          echo "✓ APK found at: $APK_PATH"
-          ls -lh "$APK_PATH"
-          echo "Size: $(du -h "$APK_PATH" | cut -f1)"
-        else
-          echo "✗ APK not found at expected path"
-          echo "Searching for APK files:"
-          find android/app/build -name "*.apk" 2>/dev/null || echo "No APK files found"
-          echo ""
-          echo "Build outputs directory:"
-          find android/app/build/outputs -type f 2>/dev/null | head -20 || echo "No outputs found"
-          exit 1
-        fi
-        
-    - name: Upload APK artifact
+    - name: Upload APK
       if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: app-release-apk
+        name: app-release
         path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/release/app-release.apk
         retention-days: 30
