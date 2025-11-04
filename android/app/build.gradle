@@ -92,9 +92,9 @@ android {
 
     compileSdkVersion rootProject.ext.compileSdkVersion
 
-    namespace "com.plazmatelecomapp"
+    namespace "ru.plazma.lk"
     defaultConfig {
-        applicationId "com.plazmatelecomapp"
+        applicationId "ru.plazma.lk"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

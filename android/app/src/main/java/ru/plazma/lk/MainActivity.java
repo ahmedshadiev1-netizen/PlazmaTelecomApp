@@ -1,4 +1,4 @@
-package com.plazmatelecomapp;
+package ru.plazma.lk;
 
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;

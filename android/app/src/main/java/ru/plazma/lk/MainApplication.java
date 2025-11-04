@@ -1,4 +1,4 @@
-package com.plazmatelecomapp;
+package ru.plazma.lk;
 
 import android.app.Application;
 import com.facebook.react.PackageList;
