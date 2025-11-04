@@ -15,19 +15,19 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
         
     - name: Setup Java
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
         
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v2
+      uses: android-actions/setup-android@v3
       
     - name: Cache Gradle dependencies
       uses: actions/cache@v4
@@ -39,47 +39,92 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
           
+    - name: Detect project structure
+      id: detect
+      run: |
+        if [ -d "PlazmaTelecomApp" ]; then
+          echo "PROJECT_DIR=PlazmaTelecomApp" >> $GITHUB_ENV
+          echo "Project directory: PlazmaTelecomApp"
+        else
+          echo "PROJECT_DIR=." >> $GITHUB_ENV
+          echo "Project directory: root"
+        fi
+        
     - name: Install dependencies
-      run: npm ci
-      
+      working-directory: ${{ env.PROJECT_DIR }}
+      run: |
+        echo "Installing npm dependencies in ${{ env.PROJECT_DIR }}..."
+        npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+        
     - name: Make gradlew executable
-      working-directory: ./android
-      run: chmod +x gradlew
-      
+      working-directory: ${{ env.PROJECT_DIR }}/android
+      run: |
+        chmod +x gradlew
+        ls -la gradlew || echo "gradlew not found"
+        
     - name: Create debug keystore if missing
-      working-directory: ./android/app
+      working-directory: ${{ env.PROJECT_DIR }}/android/app
       run: |
         if [ ! -f debug.keystore ]; then
           echo "Creating debug keystore..."
           keytool -genkeypair -v -storetype PKCS12 -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          echo "Debug keystore created successfully"
         else
           echo "Debug keystore already exists"
         fi
+        ls -la debug.keystore || echo "Warning: keystore verification failed"
+        
+    - name: Verify Android environment
+      run: |
+        echo "ANDROID_HOME: $ANDROID_HOME"
+        echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
+        echo "JAVA_HOME: $JAVA_HOME"
+        java -version || echo "Java not found"
         
     - name: Build APK
-      working-directory: ./android
+      working-directory: ${{ env.PROJECT_DIR }}/android
       env:
         ANDROID_HOME: ${{ env.ANDROID_HOME }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
-        GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false'
+        GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false'
       run: |
-        echo "Building APK..."
-        ./gradlew clean assembleRelease --no-daemon --stacktrace --info 2>&1 | tee build.log || {
-          echo "=== Build failed, showing error details ==="
-          tail -100 build.log || echo "No build log found"
+        echo "Building APK in ${{ env.PROJECT_DIR }}/android..."
+        echo "Current directory: $(pwd)"
+        echo "Listing files:"
+        ls -la || echo "Directory listing failed"
+        
+        echo "Gradle version:"
+        ./gradlew --version || echo "Gradle version check failed"
+        
+        echo "Cleaning previous build..."
+        ./gradlew clean --no-daemon || echo "Clean failed, continuing..."
+        
+        echo "Building release APK..."
+        ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log || {
+          echo "=== Build failed, showing last 200 lines ==="
+          tail -200 build.log || echo "No build log found"
+          echo "=== Checking for specific errors ==="
+          grep -i "error" build.log | tail -20 || echo "No errors found in log"
+          grep -i "exception" build.log | tail -20 || echo "No exceptions found in log"
+          grep -i "failed" build.log | tail -20 || echo "No failures found in log"
           exit 1
         }
         
+        echo "=== Build completed successfully ==="
+        
     - name: Check APK exists
       run: |
-        if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
-          echo "✓ APK file found!"
-          ls -lh android/app/build/outputs/apk/release/
-          echo "APK size: $(du -h android/app/build/outputs/apk/release/app-release.apk | cut -f1)"
+        APK_PATH="${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/release/app-release.apk"
+        if [ -f "$APK_PATH" ]; then
+          echo "✓ APK file found at $APK_PATH"
+          ls -lh "$APK_PATH"
+          echo "APK size: $(du -h "$APK_PATH" | cut -f1)"
         else
-          echo "✗ APK file not found!"
+          echo "✗ APK file not found at $APK_PATH!"
+          echo "Searching for APK files:"
+          find "${{ env.PROJECT_DIR }}/android" -name "*.apk" 2>/dev/null || echo "No APK files found"
           echo "Checking build outputs:"
-          find android/app/build/outputs -type f 2>/dev/null | head -20 || echo "No output files found"
+          find "${{ env.PROJECT_DIR }}/android/app/build/outputs" -type f 2>/dev/null | head -20 || echo "No output files found"
           exit 1
         fi
         
@@ -88,5 +133,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: app-release
-        path: android/app/build/outputs/apk/release/app-release.apk
+        path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/release/app-release.apk
         retention-days: 30
+        if-no-files-found: error

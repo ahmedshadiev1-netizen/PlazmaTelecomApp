@@ -163,6 +163,8 @@ dependencies {
         debugImplementation("com.facebook.flipper:flipper-fresco-plugin:${FLIPPER_VERSION}")
     }
     
+    // Use hermesEnabled from gradle.properties (defaults to true)
+    def hermesEnabled = findProperty('hermesEnabled') ?: "true"
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
