@@ -45,10 +45,6 @@ jobs:
       run: |
         echo "=== Installing dependencies ==="
         echo "Working in: $(pwd)"
-        echo "Node: $(node --version)"
-        echo "NPM: $(npm --version)"
-        
-        echo "Installing with legacy peer deps..."
         npm install --legacy-peer-deps 2>&1 | tee npm-install.log
         
         if [ $? -ne 0 ]; then
@@ -60,7 +56,6 @@ jobs:
         echo "Verifying installation..."
         [ -d "node_modules" ] || exit 1
         [ -d "node_modules/react-native" ] || exit 1
-        [ -d "node_modules/@react-native-community" ] || exit 1
         echo "✓ Dependencies installed"
         
     - name: Prepare Android build
@@ -81,13 +76,6 @@ jobs:
             -dname "CN=Android Debug,O=Android,C=US" 2>&1
         fi
         
-        echo "Verifying files..."
-        [ -f "gradlew" ] || exit 1
-        [ -f "build.gradle" ] || exit 1
-        [ -f "app/build.gradle" ] || exit 1
-        [ -f "settings.gradle" ] || exit 1
-        echo "✓ All files present"
-        
     - name: Build APK
       working-directory: ${{ env.PROJECT_DIR }}/android
       env:
@@ -97,72 +85,86 @@ jobs:
       run: |
         set -e
         
-        echo "=== Environment ==="
-        echo "ANDROID_HOME: $ANDROID_HOME"
-        echo "JAVA_HOME: $JAVA_HOME"
+        echo "=== Building Release APK ==="
         echo "Working in: $(pwd)"
         
-        echo "=== Testing Gradle ==="
+        echo "Testing Gradle..."
         ./gradlew --version 2>&1
         
-        echo "=== Cleaning ==="
-        ./gradlew clean --no-daemon 2>&1 | tail -20 || echo "Clean had warnings"
+        echo "Cleaning..."
+        ./gradlew clean --no-daemon 2>&1 | tail -10 || true
         
-        echo "=== Building Release APK ==="
-        echo "This may take 5-10 minutes..."
-        
-        # Build with full output
+        echo "Building APK (this may take 5-10 minutes)..."
         ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log || {
           echo ""
           echo "========================================"
           echo "          BUILD FAILED"
           echo "========================================"
-          echo ""
-          
-          # Show task failures
-          echo "=== Task Failures ==="
-          grep -E "FAILED|FAILURE|> Task.*FAILED" build.log | tail -50 || echo "No task failures found"
-          
-          echo ""
-          echo "=== Errors ==="
-          grep -i "error" build.log | grep -v "Warning" | tail -100 || echo "No errors found"
-          
-          echo ""
-          echo "=== Exceptions ==="
-          grep -A 5 "Exception" build.log | tail -100 || echo "No exceptions found"
-          
-          echo ""
-          echo "=== Last 300 lines of build log ==="
           tail -300 build.log
-          
-          echo ""
-          echo "========================================"
+          grep -E "FAILED|FAILURE|error" build.log | tail -50
           exit 1
         }
         
         echo ""
-        echo "========================================"
-        echo "          BUILD SUCCEEDED"
-        echo "========================================"
+        echo "=== Build completed, checking outputs ==="
+        echo "Listing build outputs:"
+        find app/build/outputs -type f 2>/dev/null | head -20 || echo "No outputs found"
         
-    - name: Verify APK
+        echo ""
+        echo "Looking for APK files:"
+        find app/build -name "*.apk" 2>/dev/null || echo "No APK files found"
+        
+        echo ""
+        echo "Checking release directory:"
+        ls -la app/build/outputs/apk/release/ 2>/dev/null || echo "Release directory not found"
+        
+        echo ""
+        echo "Checking all apk directories:"
+        find app/build/outputs -type d -name "*apk*" 2>/dev/null || echo "No apk directories found"
+        
+    - name: Find and verify APK
       working-directory: ${{ env.PROJECT_DIR }}
       run: |
-        APK="android/app/build/outputs/apk/release/app-release.apk"
-        if [ -f "$APK" ]; then
-          echo "✓ APK found: $APK"
-          ls -lh "$APK"
-        else
-          echo "✗ APK not found at $APK"
-          echo "Searching for APK files:"
+        echo "=== Looking for APK ==="
+        
+        # Try multiple possible locations
+        APK_PATHS=(
+          "android/app/build/outputs/apk/release/app-release.apk"
+          "android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          "android/app/build/outputs/apk/release/app-release-signed.apk"
+          "android/app/build/outputs/apk/app-release.apk"
+        )
+        
+        FOUND_APK=""
+        for path in "${APK_PATHS[@]}"; do
+          if [ -f "$path" ]; then
+            echo "✓ APK found at: $path"
+            FOUND_APK="$path"
+            ls -lh "$path"
+            break
+          fi
+        done
+        
+        if [ -z "$FOUND_APK" ]; then
+          echo "✗ APK not found at expected paths"
+          echo ""
+          echo "Searching for any APK files in android directory:"
           find android/app/build -name "*.apk" 2>/dev/null || echo "No APK files found"
+          echo ""
+          echo "Full build directory structure:"
+          find android/app/build -type f 2>/dev/null | head -30 || echo "Build directory not found"
+          echo ""
+          echo "Checking if build directory exists:"
+          ls -la android/app/build/ 2>/dev/null || echo "Build directory does not exist"
           exit 1
         fi
         
+        echo "APK_PATH=$FOUND_APK" >> $GITHUB_ENV
+        
     - name: Upload APK
-      if: success()
+      if: success() && env.APK_PATH != ''
       uses: actions/upload-artifact@v4
       with:
         name: app-release
-        path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/release/app-release.apk
+        path: ${{ env.PROJECT_DIR }}/${{ env.APK_PATH }}
         retention-days: 30
