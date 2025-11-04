@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Плазмателеком">
+    <meta name="theme-color" content="#00ff88">
+    <meta name="msapplication-navbutton-color" content="#00ff88">
+    <title>Плазмателеком - Личный кабинет</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, hsl(0, 0%, 18%) 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        /* Brand palette from legacy app */
+        :root {
+            --app-lime: #B6F13A; /* slightly darker lime for better contrast */
+            --app-black: #0B0F0A; /* deep black */
+            --app-white: #FFFFFF;
+        }
+
+        /* Login screen visual style (to match legacy app) */
+        .login-mode {
+            background: var(--app-lime) !important;
+            color: var(--app-black) !important;
+        }
+        .login-mode .header .logo { color: var(--app-black) !important; text-shadow: none; }
+        .login-mode .header p { color: var(--app-black) !important; opacity: .8; }
+        .login-mode .login-form {
+            background: var(--app-white) !important;
+            color: var(--app-black) !important;
+            border: none !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,.15);
+            border-radius: 28px !important;
+        }
+        .login-mode .form-group label { color: var(--app-black) !important; font-weight: 700; }
+        .login-mode .form-group input {
+            background: transparent !important;
+            color: var(--app-black) !important;
+            border: none !important;
+            border-bottom: 3px solid var(--app-black) !important;
+            border-radius: 0 !important;
+        }
+        .login-mode .btn {
+            background: var(--app-lime) !important;
+            color: var(--app-black) !important;
+            border-radius: 18px !important;
+            text-transform: none;
+            letter-spacing: 0;
+            box-shadow: 0 6px 14px rgba(0,0,0,.2);
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        /* Унифицированные отступы */
+        #contracts, #accounts {
+            margin-bottom: 25px;
+        }
+        
+        #contracts h3, #accounts h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 480px) {
+            .container { padding: 12px; max-width: 100%; }
+            
+            .contract-card, .account-card { min-width: 300px; flex-shrink: 0; }
+            
+            .contracts-container, .accounts-container { padding: 12px 0; gap: 16px; scroll-behavior: smooth; position: relative; }
+            
+            .contracts-container::before, .accounts-container::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: linear-gradient(90deg, transparent, #00ff88, transparent);
+                opacity: 0.3;
+            }
+            
+            .payment-form {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .payment-form input,
+            .payment-form button {
+                width: 100% !important;
+                margin: 0 !important;
+            }
+            
+            .periodic-services-content { max-width: 95%; padding: 15px; }
+            .logout-btn { width: 40px; height: 40px; }
+            
+            /* Адаптивные стили для ФИО на мобильных */
+            #userName {
+                font-size: 16px;
+                line-height: 1.5;
+            }
+            
+            .user-info {
+                padding: 16px 18px;
+            }
+        }
+        
+        @media (max-width: 320px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .contract-card, .account-card {
+                min-width: 300px;
+                padding: 20px;
+                font-size: 14px;
+            }
+            
+            .logo {
+                font-size: 20px;
+            }
+            
+            .balance {
+                font-size: 20px;
+            }
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .logo { font-size: 24px; font-weight: 800; margin-bottom: 10px; }
+        .logo svg { width: 80px; height: 80px; display: block; margin: 0 auto 10px; }
+        
+        h2, h3 {
+            color: var(--accent, var(--app-lime));
+            margin-top: 0;
+            margin-bottom: 10px; /* компактнее */
+            text-shadow: none; /* чище и компактнее */
+            position: relative;
+            font-size: 1.25em; /* меньше размер */
+            padding: 6px 10px; /* меньше отступы */
+            padding-left: 10px;
+            border-left: 3px solid var(--accent, var(--app-lime)); /* тоньше полоса */
+            background: none; /* без широкого градиента */
+            border-radius: 0;
+        }
+        
+        h2::before, h3::before { content: none !important; }
+
+        /* Hide bulky section headers per request */
+        #contracts > h3, #accounts > h3 { display: none !important; }
+        
+        h2 {
+            font-size: 1.8em;
+        }
+        
+        h3 {
+            font-size: 1.5em;
+        }
+        
+        .login-form {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 16px;
+        }
+        
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            border: none;
+            border-radius: 12px;
+            color: #000;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.4);
+        }
+        
+        .user-info {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 200, 100, 0.05));
+            padding: 20px 25px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.1);
+            position: relative;
+            overflow: visible;
+        }
+        
+        .user-info h3 {
+            margin: 0;
+            padding: 0;
+            border: none !important;
+            border-left: 0 !important;
+            background: none !important;
+            font-size: inherit;
+            color: inherit;
+        }
+        .user-info h3::before { display: none !important; content: none !important; }
+        /* Красивое отображение ФИО - позволяет перенос на 2-3 строки */
+        #userName {
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 1.4;
+            color: #ffffff;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+            margin-bottom: 8px;
+        }
+        
+        .user-info::before { display: none !important; content: none !important; }
+        
+        .contract-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+            padding: 20px 25px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(0, 255, 136, 0.4);
+            cursor: pointer;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 12px 40px rgba(0, 255, 136, 0.15);
+        }
+        
+        .contract-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(0, 255, 136, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .contract-card:hover::before {
+            opacity: 1;
+        }
+        
+        .contract-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .contract-card.active {
+            border: 2px solid #00ff88;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+        
+        .contracts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 10px 0;
+        }
+        
+        .contract-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00ff88;
+            margin-bottom: 10px;
+        }
+        
+        .contract-number:hover {
+            background: rgba(0, 255, 0, 0.2) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 255, 0, 0.3);
+        }
+        
+        .contract-dropdown {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        
+        .contract-field {
+            background: #f8f9fa;
+            border: 2px solid #00ff00;
+            border-radius: 8px;
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            font-weight: 500;
+            color: #666;
+        }
+        
+        .contract-field:hover {
+            background: rgba(0, 255, 0, 0.1);
+            border-color: #00cc00;
+        }
+        
+        .contract-field .arrow {
+            transition: transform 0.3s ease;
+        }
+        
+        .contract-field.open .arrow {
+            transform: rotate(180deg);
+        }
+        
+        .contract-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #00ff00;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .contract-list.show {
+            display: block !important;
+        }
+        
+        .contract-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s ease;
+            color: #333;
+        }
+        
+        .contract-item:hover {
+            background: rgba(0, 255, 0, 0.1);
+        }
+        
+        .contract-item:last-child {
+            border-bottom: none;
+        }
+        
+        .balance {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .balance.positive {
+            color: #00ff88;
+        }
+        
+        .balance.negative {
+            color: #ff4444;
+        }
+        
+        .account-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+            padding: 20px 25px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            border-left: 8px solid #00ff88;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            min-width: 350px;
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.1);
+        }
+        
+        .account-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 8px;
+            height: 100%;
+            background: var(--accent, var(--app-lime));
+            transition: width 0.3s ease;
+        }
+        
+        .account-card:hover::after {
+            width: 10px;
+        }
+        
+        .account-card:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.25);
+        }
+        
+        /* Разные стили для разных типов услуг */
+        .account-card.internet {
+            border-left: 8px solid var(--accent, var(--app-lime));
+            background: var(--card, #151a1f);
+        }
+        
+        .account-card.video {
+            border-left: 8px solid #ff6b35;
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(255, 80, 20, 0.05));
+        }
+        
+        .account-card.video::after {
+            background: linear-gradient(180deg, #ff6b35, #ff4500, #ff6b35);
+        }
+        
+        .account-card.television {
+            border-left: 8px solid #9c27b0;
+            background: linear-gradient(135deg, rgba(156, 39, 176, 0.1), rgba(123, 31, 162, 0.05));
+        }
+        
+        .account-card.television::after {
+            background: linear-gradient(180deg, #9c27b0, #7b1fa2, #9c27b0);
+        }
+        
+        .account-card.active {
+            border-left: 8px solid #00ff88;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .accounts-container {
+            display: flex;
+            overflow-x: auto;
+            gap: 15px;
+            padding: 10px 0;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            scroll-snap-type: x mandatory;
+        }
+        
+        .accounts-container::-webkit-scrollbar {
+            height: 5px;
+        }
+        
+        .accounts-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+        
+        .accounts-container::-webkit-scrollbar-thumb {
+            background: #00ff88;
+            border-radius: 5px;
+        }
+        
+        .services-btn {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+            display: inline-block;
+            width: auto;
+        }
+        
+        .services-btn:hover {
+            background: rgba(0, 255, 136, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        .periodic-services-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(0, 20, 40, 0.8));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .periodic-services-content {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+            padding: 30px;
+            border-radius: 25px;
+            max-width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+            backdrop-filter: blur(20px);
+            border: 3px solid rgba(0, 255, 136, 0.4);
+            box-shadow: 0 20px 60px rgba(0, 255, 136, 0.2);
+            position: relative;
+            animation: slideIn 0.4s ease;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .periodic-services-content .modal-header h3 {
+            color: var(--accent, var(--app-lime)) !important;
+            border-left: 4px solid var(--accent, var(--app-lime)) !important;
+            background: linear-gradient(90deg, color-mix(in srgb, var(--accent, var(--app-lime)) 20%, transparent), transparent) !important;
+            padding: 10px 15px !important;
+            border-radius: 0 10px 10px 0 !important;
+        }
+        
+        .modal-close-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 24px;
+            font-weight: normal;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            line-height: 1;
+        }
+        
+        .modal-close-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.5);
+            color: #fff;
+        }
+        
+        .logout-btn {
+            background: transparent;
+            border: 1px solid #ff4444;
+            color: #ff4444;
+            font-size: 20px;
+            font-weight: normal;
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            line-height: 1;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255, 68, 68, 0.2);
+            border-color: #ff6666;
+            color: #ff6666;
+        }
+        
+        .payment-close-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 16px;
+            font-weight: normal;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            line-height: 1;
+            padding: 0;
+        }
+        
+        .payment-close-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: scale(0.8) translateY(-50px);
+            }
+            to { 
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        .periodic-service-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--accent, var(--app-lime));
+        }
+        
+        .account-type {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+        
+        .account-details {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+        
+        .structured-tariff {
+            margin-top: 10px;
+        }
+        
+        .service-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .service-item:last-child {
+            border-bottom: none;
+        }
+        
+        .service-name {
+            flex: 1;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 13px;
+        }
+        
+        .service-cost {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 13px;
+            margin-left: 10px;
+        }
+        
+        .service-total {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 2px solid #00ff88;
+            color: #00ff88;
+            font-weight: bold;
+            text-align: right;
+        }
+        
+        .tariff-info {
+            margin-top: 8px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .error {
+            background: rgba(255, 68, 68, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #ff4444;
+            margin-bottom: 20px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .promise-payment {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .payment-form {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .payment-form input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+        
+        .payment-form button {
+            padding: 10px 20px;
+            background: #00ff88;
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        /* Support buttons */
+        .support-block { text-align: center; margin-top: 16px; }
+        .support-actions { display: flex; gap: 12px; justify-content: center; margin-top: 10px; flex-wrap: wrap; }
+        .support-btn { background: #C8FF47; color: #0B0F0A; border: none; border-radius: 14px; padding: 12px 18px; font-weight: 800; text-decoration: none; display: inline-block; min-width: 160px; box-shadow: 0 6px 14px rgba(0,0,0,.2); }
+        /* Brand (black-green) theme */
+        .brand-theme {
+            --bg: #0f1114;
+            --card: #151a1f;
+            --text: #e6f1ee;
+            --muted: #9aa4af;
+            --primary: var(--app-lime); /* unified with logo */
+            --success: var(--app-lime);
+            --danger: #ff5252;
+            --border: #23303d;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+            --radius: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        .brand-theme body,
+        .brand-theme .container { background: var(--bg); color: var(--text); }
+
+        .brand-theme .header {
+            background: var(--card) !important;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand-theme .logo { color: var(--primary); }
+
+        .brand-theme .contracts-container::before,
+        .brand-theme .accounts-container::before { display: none; }
+
+        .brand-theme .contract-card,
+        .brand-theme .account-card {
+            background: var(--card) !important;
+            border: 1px solid var(--border) !important;
+            border-left: none !important;
+            box-shadow: var(--shadow);
+            border-radius: var(--radius) !important;
+        }
+
+        .brand-theme h3,
+        .brand-theme .account-type { color: var(--text) !important; }
+        .brand-theme .account-details { color: var(--muted) !important; }
+
+        .brand-theme .balance { color: var(--success) !important; font-weight: 700; }
+        .brand-theme .balance.negative { color: var(--danger) !important; }
+
+        .brand-theme .btn {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            padding: 10px 16px;
+            font-weight: 600;
+            box-shadow: none;
+        }
+        .brand-theme .btn:hover { background: rgba(0,255,136,0.15); }
+
+        .brand-theme .periodic-services-modal { background: rgba(0, 0, 0, 0.5); }
+        .brand-theme .periodic-services-content { background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow); }
+
+        .brand-theme .services-btn,
+        .brand-theme .periodicServicesButton,
+        .brand-theme .payment-form .action-btn { background: var(--primary); color: #000; border: 1px solid var(--primary); }
+        .brand-theme .payment-form input { background: #0f1419; border: 1px solid var(--border); color: var(--text); }
+        /* Do not style the small close button as action */
+        .brand-theme .payment-form .payment-close-btn { background: transparent !important; border: none !important; color: var(--muted) !important; }
+        .brand-theme .payment-form .payment-close-btn:hover { color: #fff !important; background: rgba(255,255,255,0.06) !important; }
+
+        .brand-theme .account-card.internet,
+        .brand-theme .account-card.video,
+        .brand-theme .account-card.television { background: var(--card); }
+
+        /* Header layout center title, logout on the right */
+        .header-bar { position: relative; display: flex; align-items: center; min-height: 64px; }
+        .header-title { margin: 0 auto; text-align: center; width: 100%; }
+        .brand-line { display: flex; align-items: center; justify-content: center; gap: 10px; flex-direction: column; }
+        .brand-line img { height: 40px; width: auto; border-radius: 8px; display: block; }
+        .header-title p { margin: 6px 0 0 0 !important; }
+        /* visually remove dark backgrounds from non-transparent logos (e.g., JPG) */
+        #brandLogo { mix-blend-mode: screen; background: transparent; filter: brightness(1.08) contrast(1.05); }
+        .header .logout-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); }
+        .header .logo { font-size: 20px; font-weight: 800; letter-spacing: .2px; }
+        .header p { margin: 4px 0 0 0; color: var(--muted); font-weight: 500; font-size: 13px; }
+
+        /* Unified buttons */
+        .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 10px 12px !important; font-size: 14px !important; border-radius: 10px !important; }
+    </style>
+</head>
+<body>
+    <!-- Логотип теперь фиксирован: используем plazma_logo.jpg без авто-детекта -->
+    <style>
+        /* Global accent override to match logo lime */
+        :root { --accent: var(--app-lime); }
+
+        .logo,
+        h2, h3 { color: var(--accent) !important; text-shadow: 0 0 6px rgba(0,0,0,.25); }
+        h2, h3 { border-left: 4px solid var(--accent) !important; background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 20%, transparent), transparent) !important; }
+
+        .contracts-container::before,
+        .accounts-container::before { background: linear-gradient(90deg, transparent, var(--accent), transparent) !important; }
+
+        .balance.positive { color: var(--accent) !important; }
+
+        .services-btn { border: 1px solid var(--accent) !important; color: #111 !important; background: var(--accent) !important; }
+        .services-btn:hover { background: color-mix(in srgb, var(--accent) 30%, transparent) !important; }
+
+        .btn { background: var(--accent) !important; color: var(--app-black) !important; box-shadow: 0 4px 15px color-mix(in srgb, var(--accent) 30%, transparent) !important; }
+        .btn:hover { box-shadow: 0 5px 15px color-mix(in srgb, var(--accent) 40%, transparent) !important; }
+
+        .account-card { border-left: 8px solid var(--accent) !important; }
+        .account-card.active { border-left-color: var(--accent) !important; box-shadow: 0 0 15px color-mix(in srgb, var(--accent) 40%, transparent) !important; }
+        .account-card::after { background: var(--accent) !important; }
+
+        .periodic-services-content { border: 3px solid color-mix(in srgb, var(--accent) 40%, transparent) !important; box-shadow: 0 20px 60px color-mix(in srgb, var(--accent) 20%, rgba(0,0,0,0.2)) !important; }
+
+        .brand-theme .btn,
+        .brand-theme .periodicServicesButton,
+        .brand-theme .payment-form .action-btn { background: var(--accent) !important; border-color: var(--accent) !important; color: var(--app-black) !important; }
+
+        .paginationDotActive, .pagination-dot-active { background: var(--accent) !important; }
+        .statusActive { color: var(--accent) !important; }
+
+        /* Override legacy greens to the new accent */
+        .contract-field { border-color: var(--accent) !important; }
+        .contract-field:hover { border-color: color-mix(in srgb, var(--accent) 80%, #fff) !important; }
+        .contract-card.active { border-color: var(--accent) !important; }
+        .contracts-container::before, .accounts-container::before { background: linear-gradient(90deg, transparent, var(--accent), transparent) !important; }
+
+        /* Additional coverage for remaining greens */
+        .user-info { 
+            background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 8%, transparent)) !important;
+            border-color: color-mix(in srgb, var(--accent) 30%, transparent) !important;
+            box-shadow: 0 8px 32px color-mix(in srgb, var(--accent) 12%, transparent) !important;
+        }
+        .contract-card { 
+            border-color: color-mix(in srgb, var(--accent) 40%, transparent) !important;
+            box-shadow: 0 12px 40px color-mix(in srgb, var(--accent) 15%, transparent) !important;
+        }
+        .contract-card::before { background: radial-gradient(circle, color-mix(in srgb, var(--accent) 15%, transparent) 0%, transparent 70%) !important; }
+        .contract-number { color: var(--accent) !important; }
+        .balance.positive { color: var(--accent) !important; }
+        .account-card { box-shadow: 0 8px 25px color-mix(in srgb, var(--accent) 12%, transparent) !important; }
+        .account-card::after { background: var(--accent) !important; }
+        .account-card.internet { border-left: 8px solid var(--accent) !important; background: var(--card, #151a1f) !important; }
+        .account-card.active { border-left: 8px solid var(--accent) !important; box-shadow: 0 0 15px color-mix(in srgb, var(--accent) 35%, transparent) !important; }
+        .accounts-container::-webkit-scrollbar-thumb { background: var(--accent) !important; }
+        .periodic-services-content { border-color: color-mix(in srgb, var(--accent) 40%, transparent) !important; box-shadow: 0 20px 60px color-mix(in srgb, var(--accent) 20%, transparent) !important; }
+        .service-cost, .service-total { color: var(--accent) !important; border-color: var(--accent) !important; }
+        .header .logo { color: var(--accent) !important; }
+        .header p { color: color-mix(in srgb, var(--accent) 55%, #9aa4af) !important; }
+    </style>
+    <div class="container">
+        <div class="header">
+            <div class="header-bar">
+                <div class="header-title">
+                    <div class="brand-line">
+                        <img id="brandLogo" src="./assets/plazma_logo.jpg" alt="Плазмателеком" />
+                        <div class="logo" id="brandTitle">Плазмателеком</div>
+                    </div>
+                    <p>Личный кабинет абонента</p>
+                </div>
+                <button class="logout-btn" onclick="logout()" style="display: none;" id="logoutBtn" title="Выход" aria-label="Выйти">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M14 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M7 12h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M17 12l-3-3m3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Форма входа -->
+        <div id="loginForm" class="login-form">
+            <div class="form-group">
+                <label for="username">Логин:</label>
+                <input type="text" id="username" placeholder="Введите логин">
+            </div>
+            <div class="form-group">
+                <label for="password">Пароль:</label>
+                <input type="password" id="password" placeholder="Введите пароль">
+            </div>
+            <button class="btn" onclick="login()">Войти</button>
+            <div class="support-block">
+                <div style="font-weight:700">Не знаете номер договора или пароль?</div>
+                <div>Обратитесь в техническую поддержку</div>
+                <div class="support-actions">
+                    <a class="support-btn" href="https://wa.me/79289195550" target="_blank" rel="noopener">НАПИСАТЬ</a>
+                    <a class="support-btn" href="tel:+79289195550">ПОЗВОНИТЬ</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Информация о пользователе -->
+        <div id="userInfo" class="user-info hidden">
+            <h3 id="userName"></h3>
+            <p>Добро пожаловать в личный кабинет!</p>
+        </div>
+        
+        <!-- Контракты -->
+        <div id="contracts" class="hidden">
+            <h3>Ваши договоры:</h3>
+            <div id="selectedContract"></div>
+            <div id="contractsList" class="contracts-list hidden"></div>
+        </div>
+        
+        <!-- Счета -->
+        <div id="accounts" class="hidden">
+            <h3>Ваши услуги:</h3>
+            <div id="accountsList" class="accounts-container"></div>
+        </div>
+        
+        <!-- Модальное окно выбора контракта -->
+        <div id="contractSelectModal" class="periodic-services-modal hidden">
+            <div class="periodic-services-content">
+                <div class="modal-header">
+                    <h3>Выберите контракт</h3>
+                    <button class="modal-close-btn" onclick="closeContractSelector()">&times;</button>
+                </div>
+                <div id="contractSelectList"></div>
+                <button class="btn" onclick="closeContractSelector()" style="margin-top: 15px;">Закрыть</button>
+            </div>
+        </div>
+        
+        <!-- Модальное окно для услуг -->
+        <div id="periodicServicesModal" class="periodic-services-modal hidden">
+            <div class="periodic-services-content">
+                <div class="modal-header">
+                    <h3>Услуги</h3>
+                    <button class="modal-close-btn" onclick="closePeriodicServices()">&times;</button>
+                </div>
+                <div id="periodicServicesList"></div>
+                <button class="btn" onclick="closePeriodicServices()" style="margin-top: 15px;">Закрыть</button>
+            </div>
+        </div>
+        
+        <!-- Модальное окно для истории платежей -->
+        <div id="paymentsHistoryModal" class="periodic-services-modal hidden">
+            <div class="periodic-services-content">
+                <div class="modal-header">
+                    <h3>История платежей</h3>
+                    <button class="modal-close-btn" onclick="closePaymentsHistory()">&times;</button>
+                </div>
+                <div id="paymentsHistoryList"></div>
+                <button class="btn" onclick="closePaymentsHistory()" style="margin-top: 15px;">Закрыть</button>
+            </div>
+        </div>
+        
+        <!-- Модальное окно для истории списаний -->
+        <div id="debitsHistoryModal" class="periodic-services-modal hidden">
+            <div class="periodic-services-content">
+                <div class="modal-header">
+                    <h3>История списаний</h3>
+                    <button class="modal-close-btn" onclick="closeDebitsHistory()">&times;</button>
+                </div>
+                <div id="debitsHistoryList"></div>
+                <button class="btn" onclick="closeDebitsHistory()" style="margin-top: 15px;">Закрыть</button>
+            </div>
+        </div>
+        
+        <!-- Загрузка -->
+        <div id="loading" class="loading hidden">
+            <p>Загрузка...</p>
+        </div>
+        
+        <!-- Ошибка -->
+        <div id="error" class="error hidden">
+            <p id="errorMessage"></p>
+        </div>
+    </div>
+
+    <script>
+        // Автоматически подставляем хост API по адресу, с которого открыли страницу
+        // - Если открыто на ПК (127.0.0.1/localhost) -> API: 127.0.0.1:8000
+        // - Если открыто в эмуляторе/BlueStacks по 10.0.2.2 -> API: 10.0.2.2:8000
+        // - Если открыто по реальному IP ПК (например, 10.10.1.203) -> API: [этот IP]:8000
+        (function() {
+            const pageHost = window.location.hostname;
+            let apiHost = pageHost;
+            if (pageHost === 'localhost') apiHost = '127.0.0.1';
+            // для Android-эмуляторов специальный шлюз к хосту
+            if (pageHost === '10.0.2.2') apiHost = '10.0.2.2';
+            // если открыт по file://, используем 127.0.0.1 как дефолт
+            if (!apiHost || apiHost === '') apiHost = '127.0.0.1';
+            window.API_BASE = `http://${apiHost}:8000`;
+        })();
+        const API_BASE = window.API_BASE;
+        let authToken = '';
+        let currentUser = '';
+        let currentContractId = null;
+        let currentAccountId = null;
+        let contracts = [];
+        let accounts = [];
+        
+        // Применяем единую бренд-тему (черно‑зеленую)
+        document.documentElement.classList.add('brand-theme');
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showError('Введите логин и пароль');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.access_token;
+                    currentUser = username;
+                    
+                    const loginForm = document.getElementById('loginForm');
+                    const userInfo = document.getElementById('userInfo');
+                    const userName = document.getElementById('userName');
+                    if (loginForm) loginForm.classList.add('hidden');
+                    if (userInfo) userInfo.classList.remove('hidden');
+                    document.body.classList.remove('login-mode');
+                    if (userName) {
+                        userName.textContent = `Пользователь: ${username}`;
+                    }
+                    
+                    await loadUserData();
+                } else {
+                    const error = await response.json();
+                    showError(`Ошибка входа: ${error.detail || 'Неверный логин или пароль'}`);
+                }
+            } catch (error) {
+                showError(`Ошибка соединения: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        async function loadUserData() {
+            showLoading(true);
+            
+            try {
+                // Сначала получаем профиль пользователя для ФИО
+                const profileResponse = await fetch(`${API_BASE}/user/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (profileResponse.ok) {
+                    const profile = await profileResponse.json();
+                    if (profile.name) {
+                        const el = document.getElementById('userName');
+                        el.textContent = `Пользователь: ${profile.name}`;
+                    }
+                    // Показываем кнопку выхода
+                    const logoutBtn = document.getElementById('logoutBtn');
+                    if (logoutBtn) logoutBtn.style.display = 'block';
+                }
+                
+                // Загружаем контракты
+                const contractsResponse = await fetch(`${API_BASE}/contracts`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (contractsResponse.ok) {
+                    const data = await contractsResponse.json();
+                    // Сохраняем список для селектора и dropdown
+                    window._allContracts = data;
+                    window.contracts = Array.isArray(data) ? data : [];
+                    // Отображаем активный контракт (первый по умолчанию)
+                    if (data.length > 0) {
+                        renderSelectedContract(data[0]);
+                        currentContractId = data[0].id;
+                    }
+                }
+                
+                // Загружаем счета
+                if (currentContractId) {
+                    console.log('Loading initial accounts for contract:', currentContractId);
+                    const accountsResponse = await fetch(`${API_BASE}/contracts/${currentContractId}/accounts`, {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
+                    
+                    if (accountsResponse.ok) {
+                        const accounts = await accountsResponse.json();
+                        console.log('Initial accounts loaded:', accounts);
+                        displayAccounts(accounts);
+                    } else {
+                        const errorText = await accountsResponse.text();
+                        console.error('Failed to load initial accounts:', accountsResponse.status, errorText);
+                        showError(`Ошибка загрузки счетов: ${accountsResponse.status}`);
+                    }
+                } else {
+                    console.warn('No contract ID available for loading accounts');
+                }
+                
+                const contractsDiv = document.getElementById('contracts');
+                const accountsDiv = document.getElementById('accounts');
+                const promisePaymentDiv = document.getElementById('promisePayment');
+                if (contractsDiv) contractsDiv.classList.remove('hidden');
+                if (accountsDiv) accountsDiv.classList.remove('hidden');
+                if (promisePaymentDiv) promisePaymentDiv.classList.remove('hidden');
+                
+            } catch (error) {
+                showError(`Ошибка загрузки данных: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        
+        function displayContracts(contractsData) {
+            console.log('displayContracts called with:', contractsData);
+            contracts = contractsData;
+            window.contracts = contractsData; // Сохраняем в window для доступа из других функций
+            console.log('window.contracts set to:', window.contracts);
+            
+            const list = document.getElementById('contractSelectList');
+            if (!list) return;
+            list.innerHTML = '';
+            
+            contracts.forEach((contract, index) => {
+                const contractDiv = document.createElement('div');
+                contractDiv.className = 'contract-card';
+                const balanceClass = contract.balance >= 0 ? 'positive' : 'negative';
+                
+                contractDiv.innerHTML = `
+                    <div class="contract-number">Контракт № ${contract.number}</div>
+                    <div class="balance ${balanceClass}">${contract.balance.toFixed(2)} руб</div>
+                    <div class="account-details">Статус: ${contract.status}</div>
+                `;
+                contractDiv.onclick = () => {
+                    selectContract(contract.id, index);
+                    renderSelectedContract(contract);
+                    closeContractSelector();
+                };
+                list.appendChild(contractDiv);
+            });
+        }
+
+        function renderSelectedContract(contract) {
+            const container = document.getElementById('selectedContract');
+            if (!container) return;
+            const balanceClass = contract.balance >= 0 ? 'positive' : 'negative';
+            
+            // Безопасная проверка массива контрактов
+            let allContracts = [];
+            if (window.contracts && Array.isArray(window.contracts)) {
+                allContracts = window.contracts;
+            } else if (contracts && Array.isArray(contracts)) {
+                allContracts = contracts;
+            }
+            
+            console.log('renderSelectedContract - allContracts:', allContracts);
+            console.log('renderSelectedContract - window.contracts:', window.contracts);
+            console.log('renderSelectedContract - contracts:', contracts);
+            
+            container.innerHTML = `
+                <div class="contract-card active">
+                    <div class="contract-dropdown">
+                        <div class="contract-field" onclick="toggleContractDropdown()">
+                            <span>ДОГОВОР: ${contract.number}</span>
+                            <span class="arrow">▲</span>
+                        </div>
+                        <div class="contract-list" id="contractList">
+                            ${allContracts.map(c => `
+                                <div class="contract-item" onclick="selectContract(${c.id})">
+                                    ${c.number}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="balance ${balanceClass}">${contract.balance.toFixed(2)} руб</div>
+                    <div class="account-details">Статус: ${contract.status}</div>
+                    <div class="payment-form" style="margin-top: 15px; flex-direction: column; gap: 10px;">
+                        <div id="paymentInput_${contract.id}" class="hidden" style="margin-bottom: 10px; position: relative;">
+                            <input type="number" id="paymentAmount_${contract.id}" placeholder="Сумма (50-100 руб)" min="50" max="100" style="width: 100%; margin-bottom: 10px; padding-right: 35px;">
+                            <button class="payment-close-btn" onclick="closePaymentInput(${contract.id})" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%);">&times;</button>
+                        </div>
+                        <button class="btn action-btn btn-sm" onclick="togglePaymentInput(${contract.id})" style="width: 100%;">Обещанный платеж</button>
+                        <button class="btn btn-secondary btn-sm" onclick="showPaymentsHistory(${contract.id})" style="width: 100%;">История платежей</button>
+                        <button class="btn btn-secondary btn-sm" onclick="showDebitsHistory(${contract.id})" style="width: 100%;">История списаний</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function displayAccounts(accountsData) {
+            console.log('displayAccounts called with:', accountsData);
+            // keep only Internet (radius), TVIP and Video (UsBox)
+            const allowedAgents = ['radius', 'TVIP', 'UsBox'];
+            const excludeKeywords = ['рассроч', 'pon', 'оборуд', 'аренда', 'выкуп', 'deposit', 'залог'];
+            accounts = (accountsData || []).filter(acc => {
+                const typeOk = allowedAgents.includes(String(acc.agent_type || '').trim());
+                if (!typeOk) {
+                    console.log('Filtered out account:', acc.id, 'agent_type:', acc.agent_type);
+                    return false;
+                }
+                const name = String(acc.tariff_name || '').toLowerCase();
+                const shouldExclude = excludeKeywords.some(k => name.includes(k));
+                if (shouldExclude) {
+                    console.log('Filtered out account:', acc.id, 'keyword match in:', name);
+                    return false;
+                }
+                return true;
+            });
+            console.log('Filtered accounts:', accounts);
+            const container = document.getElementById('accountsList');
+            if (!container) {
+                console.error('accountsList container not found!');
+                return;
+            }
+            container.innerHTML = '';
+            
+            // Убеждаемся, что секция аккаунтов видна
+            const accountsDiv = document.getElementById('accounts');
+            if (accountsDiv) {
+                accountsDiv.classList.remove('hidden');
+            }
+            
+            if (accounts.length === 0) {
+                container.innerHTML = '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.7);">Услуги не найдены для выбранного договора</div>';
+                console.log('No accounts to display after filtering');
+                return;
+            }
+            
+            accounts.forEach((account, index) => {
+                const accountDiv = document.createElement('div');
+                accountDiv.className = 'account-card';
+                
+                let accountType = 'Неизвестно';
+                // Логика отображения типа услуги
+                // TVIP всегда "Телевидение"; UsBox может быть как видеонаблюдение, так и телевидение, если это TVIP-сервис
+                if (account.agent_type === 'TVIP') {
+                    accountType = 'Телевидение';
+                } else if (account.agent_type === 'UsBox') {
+                    const tn = (account.tariff_name || '').toLowerCase();
+                    const loginLower = (account.login || '').toLowerCase();
+                    // Эвристики: если упоминается tv, tvip, iptv, пакет, канал и т.п., считаем телевидением
+                    // Также проверяем, если это числовой логин (как 2404) и есть пароль, то это телевидение
+                    // Или если логин заканчивается на -1 (как Test-Ne-Udalyat-1), то это телевидение
+                    if (tn.includes('tv') || tn.includes('tvip') || tn.includes('iptv') || tn.includes('пакет') || tn.includes('канал') || loginLower.includes('tv') || 
+                        (account.password && /^\d+$/.test(account.login)) || loginLower.endsWith('-1')) {
+                        accountType = 'Телевидение';
+                    } else {
+                        accountType = 'Видеонаблюдение';
+                    }
+                } else if (account.agent_type === 'radius') {
+                    accountType = 'Интернет';
+                }
+                
+                // Добавляем специфичные классы для разных типов услуг
+                if (accountType === 'Интернет') {
+                    accountDiv.classList.add('internet');
+                } else if (accountType === 'Видеонаблюдение') {
+                    accountDiv.classList.add('video');
+                } else if (accountType === 'Телевидение') {
+                    accountDiv.classList.add('television');
+                }
+                
+                if (index === 0) {
+                    if (accountDiv.classList) accountDiv.classList.add('active');
+                    currentAccountId = account.id;
+                }
+                
+                let servicesBtn = '';
+                if (account.agent_type === 'radius') {
+                    servicesBtn = `<button class="services-btn" onclick="showPeriodicServices(${account.id})">Услуги</button>`;
+                }
+                
+                // Форматируем описание для видеонаблюдения
+                let tariffDisplay = account.tariff_name;
+                if (accountType === 'Видеонаблюдение' && account.tariff_name) {
+                    // Разбиваем длинное описание на структурированный вид
+                    const tariff = account.tariff_name;
+                    const parts = tariff.split(' | ');
+                    let structuredParts = [];
+                    
+                    parts.forEach(part => {
+                        if (part.includes('=') && !part.includes('Итого:')) {
+                            // Разделяем на название и стоимость
+                            const [name, cost] = part.split(' = ');
+                            if (name && cost) {
+                                structuredParts.push(`<div class="service-item"><span class="service-name">${name.trim()}</span><span class="service-cost">${cost.trim()}</span></div>`);
+                            }
+                        } else if (part.includes('Итого:')) {
+                            // Итого выводим отдельно
+                            structuredParts.push(`<div class="service-total">${part}</div>`);
+                        }
+                    });
+                    
+                    if (structuredParts.length > 0) {
+                        tariffDisplay = `<div class="structured-tariff">${structuredParts.join('')}</div>`;
+                    }
+                } else if (accountType === 'Телевидение' && account.tariff_name) {
+                    // Убираем "| Итого: 0" из описания телевидения
+                    tariffDisplay = account.tariff_name.replace(/\s*\|\s*Итого\s*:\s*0\s*руб?\s*/g, '').trim();
+                }
+                
+                // Добавляем пароль для телевидения
+                let passwordField = '';
+                if (accountType === 'Телевидение' && account.password) {
+                    passwordField = `<div>Пароль: ${account.password}</div>`;
+                }
+                
+                accountDiv.innerHTML = `
+                    <div class="account-type">${accountType}</div>
+                    <div class="account-details">
+                        <div>Логин: ${account.login || 'Не указан'}</div>
+                        ${passwordField}
+                        <div>Статус: ${account.status}</div>
+                        <div class="tariff-info">${tariffDisplay}</div>
+                        ${servicesBtn}
+                    </div>
+                `;
+                
+                accountDiv.onclick = () => selectAccount(account.id, index);
+                container.appendChild(accountDiv);
+            });
+        }
+        
+        function selectContract(contractId, index) {
+            currentContractId = contractId;
+            
+            // Находим выбранный контракт и перерисовываем шапку
+            const listSource = (window.contracts && Array.isArray(window.contracts)) ? window.contracts : contracts;
+            const selected = (listSource || []).find(c => c.id === contractId);
+            if (selected) {
+                renderSelectedContract(selected);
+            }
+            
+            // Обновляем активный контракт (услуги)
+            loadAccountsForContract(contractId);
+            
+            // Закрываем dropdown
+            const contractList = document.getElementById('contractList');
+            const contractField = document.querySelector('.contract-field');
+            if (contractList && contractField) {
+                contractList.classList.remove('show');
+                contractField.classList.remove('open');
+            }
+        }
+        
+        function selectAccount(accountId, index) {
+            currentAccountId = accountId;
+            
+            // Обновляем активный счет
+            const accountCards = document.querySelectorAll('.account-card');
+            accountCards.forEach((card, i) => {
+                if (card && card.classList) {
+                    if (i === index) {
+                        card.classList.add('active');
+                    } else {
+                        card.classList.remove('active');
+                    }
+                }
+            });
+        }
+        
+        async function loadAccountsForContract(contractId) {
+            try {
+                console.log('Loading accounts for contract:', contractId);
+                const response = await fetch(`${API_BASE}/contracts/${contractId}/accounts`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const accounts = await response.json();
+                    console.log('Loaded accounts:', accounts);
+                    displayAccounts(accounts);
+                    
+                    // Убеждаемся, что секция аккаунтов видна
+                    const accountsDiv = document.getElementById('accounts');
+                    if (accountsDiv) {
+                        accountsDiv.classList.remove('hidden');
+                    }
+                } else {
+                    const errorText = await response.text();
+                    console.error('Failed to load accounts:', response.status, errorText);
+                    showError(`Ошибка загрузки счетов: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Error loading accounts:', error);
+                showError(`Ошибка загрузки счетов: ${error.message}`);
+            }
+        }
+        
+        async function showPeriodicServices(accountId) {
+            try {
+                const response = await fetch(`${API_BASE}/accounts/${accountId}/services`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const services = await response.json();
+                    displayPeriodicServices(services);
+                    const modal = document.getElementById('periodicServicesModal');
+                    if (modal) modal.classList.remove('hidden');
+                } else {
+                    showError('Ошибка загрузки периодических услуг');
+                }
+            } catch (error) {
+                showError(`Ошибка соединения: ${error.message}`);
+            }
+        }
+
+        function toggleContractDropdown() {
+            const contractList = document.getElementById('contractList');
+            const contractField = document.querySelector('.contract-field');
+            
+            console.log('toggleContractDropdown called');
+            console.log('contractList:', contractList);
+            console.log('contractField:', contractField);
+            console.log('contractList.classList:', contractList ? contractList.classList : 'null');
+            
+            if (contractList && contractField) {
+                if (contractList.classList.contains('show')) {
+                    contractList.classList.remove('show');
+                    contractField.classList.remove('open');
+                    console.log('Closing dropdown');
+                } else {
+                    contractList.classList.add('show');
+                    contractField.classList.add('open');
+                    console.log('Opening dropdown');
+                    console.log('After adding show class:', contractList.classList.contains('show'));
+                }
+            } else {
+                console.log('Elements not found!');
+            }
+        }
+        
+        function showContractSelector() {
+            // Используем dropdown вместо модального окна
+            toggleContractDropdown();
+        }
+        
+        function closeContractSelector() {
+            const modal = document.getElementById('contractSelectModal');
+            if (modal) modal.classList.add('hidden');
+        }
+        
+        function displayPeriodicServices(services) {
+            const container = document.getElementById('periodicServicesList');
+            container.innerHTML = '';
+            
+            services.forEach(service => {
+                const serviceDiv = document.createElement('div');
+                serviceDiv.className = 'periodic-service-item';
+                
+                serviceDiv.innerHTML = `
+                    <div class="account-type">${service.description}</div>
+                    <div class="account-details">
+                        <div>Количество: ${service.quantity}</div>
+                        <div>Цена: ${service.price.toFixed(2)} руб</div>
+                        <div>Общая стоимость: ${service.total_cost.toFixed(2)} руб</div>
+                        ${service.first_on ? `<div>Дата начала: ${service.first_on}</div>` : ''}
+                    </div>
+                `;
+                
+                container.appendChild(serviceDiv);
+            });
+        }
+        
+        function closePeriodicServices() {
+            const modal = document.getElementById('periodicServicesModal');
+            if (modal) modal.classList.add('hidden');
+        }
+        
+        async function showPaymentsHistory(contractId) {
+            try {
+                const response = await fetch(`${API_BASE}/contracts/${contractId}/payments`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const payments = await response.json();
+                    displayPaymentsHistory(payments);
+                    const modal = document.getElementById('paymentsHistoryModal');
+                    if (modal) modal.classList.remove('hidden');
+                } else {
+                    showError('Ошибка загрузки истории платежей');
+                }
+            } catch (error) {
+                showError(`Ошибка соединения: ${error.message}`);
+            }
+        }
+        
+        function displayPaymentsHistory(payments) {
+            const container = document.getElementById('paymentsHistoryList');
+            container.innerHTML = '';
+            
+            if (!payments || payments.length === 0) {
+                container.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">История платежей пуста</div>';
+                return;
+            }
+            
+            payments.forEach(payment => {
+                const paymentDiv = document.createElement('div');
+                paymentDiv.className = 'periodic-service-item';
+                
+                const amount = payment.amount || 0;
+                const amountClass = amount >= 0 ? 'statusActive' : 'statusInactive';
+                
+                paymentDiv.innerHTML = `
+                    <div class="account-type">${payment.description || 'Платеж'}</div>
+                    <div class="account-details">
+                        <div>Дата: ${payment.date || 'N/A'}</div>
+                        <div>Сумма: <span style="color: ${amount >= 0 ? '#2E7D32' : '#D32F2F'}">${amount.toFixed(2)} руб</span></div>
+                        ${payment.type ? `<div>Тип: ${payment.type}</div>` : ''}
+                        ${payment.status ? `<div>Статус: ${payment.status}</div>` : ''}
+                        ${payment.document_number ? `<div>Документ: ${payment.document_number}</div>` : ''}
+                        ${payment.category ? `<div>Категория: ${payment.category}</div>` : ''}
+                    </div>
+                `;
+                
+                container.appendChild(paymentDiv);
+            });
+        }
+        
+        function closePaymentsHistory() {
+            const modal = document.getElementById('paymentsHistoryModal');
+            if (modal) modal.classList.add('hidden');
+        }
+        
+        async function showDebitsHistory(contractId) {
+            try {
+                const response = await fetch(`${API_BASE}/contracts/${contractId}/debits`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const debits = await response.json();
+                    displayDebitsHistory(debits);
+                    const modal = document.getElementById('debitsHistoryModal');
+                    if (modal) modal.classList.remove('hidden');
+                } else {
+                    showError('Ошибка загрузки истории списаний');
+                }
+            } catch (error) {
+                showError(`Ошибка соединения: ${error.message}`);
+            }
+        }
+        
+        function displayDebitsHistory(debits) {
+            const container = document.getElementById('debitsHistoryList');
+            container.innerHTML = '';
+            
+            if (!debits || debits.length === 0) {
+                container.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">История списаний пуста</div>';
+                return;
+            }
+            
+            debits.forEach(debit => {
+                const debitDiv = document.createElement('div');
+                debitDiv.className = 'periodic-service-item';
+                
+                debitDiv.innerHTML = `
+                    <div class="account-type">${debit.name || 'Списание абонентской платы'}</div>
+                    <div class="account-details">
+                        <div>Период: ${debit.period || 'N/A'}</div>
+                        <div>Дата расчета: ${debit.calculation_date || 'N/A'}</div>
+                        <div>Сумма: <span style="color: #D32F2F">${debit.amount ? debit.amount.toFixed(2) : '0.00'} ${debit.currency || 'руб'}</span></div>
+                        ${debit.debit_type ? `<div>Тип: ${debit.debit_type}</div>` : ''}
+                        ${debit.account ? `<div>Счет: ${debit.account}</div>` : ''}
+                    </div>
+                `;
+                
+                container.appendChild(debitDiv);
+            });
+        }
+        
+        function closeDebitsHistory() {
+            const modal = document.getElementById('debitsHistoryModal');
+            if (modal) modal.classList.add('hidden');
+        }
+        
+        function togglePaymentInput(contractId) {
+            const inputDiv = document.getElementById(`paymentInput_${contractId}`);
+            const amountInput = document.getElementById(`paymentAmount_${contractId}`);
+            const button = event.target;
+            
+            if (inputDiv.classList.contains('hidden')) {
+                inputDiv.classList.remove('hidden');
+                button.textContent = 'Активировать платеж';
+                amountInput.focus();
+            } else {
+                // Активируем платеж
+                activatePromisePayment(contractId);
+            }
+        }
+        
+        function closePaymentInput(contractId) {
+            const inputDiv = document.getElementById(`paymentInput_${contractId}`);
+            const button = document.querySelector(`button[onclick="togglePaymentInput(${contractId})"]`);
+            if (inputDiv) inputDiv.classList.add('hidden');
+            if (button) button.textContent = 'Обещанный платеж';
+        }
+        
+        function logout() {
+            authToken = '';
+            currentUser = '';
+            currentContractId = null;
+            currentAccountId = null;
+            contracts = [];
+            accounts = [];
+            
+            const loginForm = document.getElementById('loginForm');
+            const userInfo = document.getElementById('userInfo');
+            const contractsDiv = document.getElementById('contracts');
+            const accountsDiv = document.getElementById('accounts');
+            
+            if (loginForm) loginForm.classList.remove('hidden');
+            if (userInfo) userInfo.classList.add('hidden');
+            if (contractsDiv) contractsDiv.classList.add('hidden');
+            if (accountsDiv) accountsDiv.classList.add('hidden');
+            
+            // Скрываем кнопку выхода
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) logoutBtn.style.display = 'none';
+            
+            // Очищаем поля ввода
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
+        
+        async function activatePromisePayment(contractId) {
+            const amount = document.getElementById(`paymentAmount_${contractId}`).value;
+            
+            if (!amount || amount < 50 || amount > 100) {
+                showError('Сумма должна быть от 50 до 100 рублей');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`${API_BASE}/contracts/${contractId}/promise-payment`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        amount: parseFloat(amount),
+                        description: 'Обещанный платеж через веб-интерфейс'
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`Обещанный платеж активирован! Сумма: ${amount} руб`);
+                    
+                    // Скрываем поле ввода и сбрасываем кнопку
+                    const inputDiv = document.getElementById(`paymentInput_${contractId}`);
+                    const button = document.querySelector(`button[onclick="togglePaymentInput(${contractId})"]`);
+                    if (inputDiv) inputDiv.classList.add('hidden');
+                    if (button) button.textContent = 'Обещанный платеж';
+                    
+                    await loadUserData(); // Перезагружаем данные
+                } else {
+                    const error = await response.json();
+                    showError(`Ошибка активации: ${error.detail || 'Неизвестная ошибка'}`);
+                }
+            } catch (error) {
+                showError(`Ошибка соединения: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        function showLoading(show) {
+            const loadingDiv = document.getElementById('loading');
+            if (loadingDiv) loadingDiv.classList.toggle('hidden', !show);
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            const errorMessage = document.getElementById('errorMessage');
+            if (errorMessage) errorMessage.textContent = message;
+            if (errorDiv) {
+                errorDiv.classList.remove('hidden');
+                setTimeout(() => {
+                    errorDiv.classList.add('hidden');
+                }, 5000);
+            }
+        }
+        
+        // Закрытие dropdown при клике вне его
+        document.addEventListener('click', function(event) {
+            const dropdown = document.querySelector('.contract-dropdown');
+            if (dropdown && !dropdown.contains(event.target)) {
+                const contractList = document.getElementById('contractList');
+                const contractField = document.querySelector('.contract-field');
+                if (contractList && contractField) {
+                    contractList.classList.remove('show');
+                    contractField.classList.remove('open');
+                }
+            }
+        });
+        
+        // Автоматический вход для тестирования
+        window.onload = function() {
+            // Можно раскомментировать для автоматического входа
+            // setTimeout(login, 1000);
+        };
+    </script>
+</body>
+</html>

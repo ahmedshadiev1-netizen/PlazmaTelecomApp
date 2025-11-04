@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Плазмателеком",
+    "slug": "plazmatelecom",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/plazma_logo.jpg",
+    "scheme": "plazma",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/plazma_logo.jpg",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f1114"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "ru.plazma.lk"
+    },
+    "android": {
+      "package": "ru.plazma.lk",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/plazma_logo.jpg",
+        "backgroundColor": "#0f1114"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/plazma_logo.jpg"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "bee2812b-0bdb-413e-85db-1895d432d803"
+      }
+    },
+    "owner": "akhmed233"
+  }
+}
