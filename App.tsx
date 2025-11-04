@@ -579,7 +579,8 @@ const styles = StyleSheet.create({
     margin: 15,
   },
   accountsPager: {
-    height: 300,
+    height: 450, // Increased height for better card display
+    width: '100%',
   },
   accountCard: {
     backgroundColor: 'white',
@@ -589,7 +590,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    marginHorizontal: 5,
+    marginHorizontal: 10,
+    padding: 20,
+    flex: 1,
   },
   accountHeader: {
     backgroundColor: '#2E7D32',
