@@ -4,6 +4,10 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        // Add local maven repository for React Native gradle plugin
+        maven {
+            url = uri("${rootDir}/../node_modules/react-native/android")
+        }
     }
     ext {
         buildToolsVersion = "33.0.0"
@@ -16,7 +20,8 @@ buildscript {
         classpath("com.android.tools.build:gradle:7.4.2")
         // For RN 0.72, use the plugin from react-native package directly
         // The plugin is bundled with react-native and doesn't need includeBuild
-        classpath("com.facebook.react:react-native-gradle-plugin:0.72.17")
+        // Try with version first, fallback to no version
+        classpath("com.facebook.react:react-native-gradle-plugin")
     }
 }
 
