@@ -8,11 +8,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -29,189 +28,31 @@ jobs:
       uses: android-actions/setup-android@v3
       
     - name: Find project directory
-      id: find_dir
       run: |
         if [ -d "PlazmaTelecomApp" ] && [ -f "PlazmaTelecomApp/package.json" ]; then
           echo "PROJECT_DIR=PlazmaTelecomApp" >> $GITHUB_ENV
         else
           echo "PROJECT_DIR=." >> $GITHUB_ENV
         fi
-        echo "Project directory: $PROJECT_DIR"
         
     - name: Install dependencies
       working-directory: ${{ env.PROJECT_DIR }}
       run: |
-        echo "=== Installing dependencies ==="
-        npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-        
-        echo "Verifying installation..."
-        [ -d "node_modules" ] || (echo "ERROR: node_modules not found" && exit 1)
-        [ -d "node_modules/react-native" ] || (echo "ERROR: react-native not found" && exit 1)
-        echo "✓ Dependencies installed"
-        
-    - name: Verify React Native setup
-      working-directory: ${{ env.PROJECT_DIR }}
-      run: |
-        echo "=== Verifying React Native setup ==="
-        echo "React Native version:"
-        cat node_modules/react-native/package.json | grep '"version"' | head -1 || true
-        echo ""
-        echo "Checking gradle plugin location..."
-        if [ -d "node_modules/react-native" ]; then
-          echo "✓ react-native found"
-          ls -la node_modules/react-native/ | grep -E "gradle|plugin" | head -5 || echo "No gradle plugin files visible"
-        fi
-        echo ""
-        echo "Checking CLI:"
-        [ -d "node_modules/@react-native-community/cli-platform-android" ] && echo "✓ CLI found" || echo "✗ CLI not found"
-        
-    - name: Prepare Android build
-      working-directory: ${{ env.PROJECT_DIR }}/android
-      run: |
-        echo "=== Preparing Android build ==="
-        chmod +x gradlew
-        ./gradlew --version
-        
-        # Verify settings.gradle
-        echo "Checking settings.gradle..."
-        if grep -q "includeBuild.*react-native" settings.gradle; then
-          echo "✓ settings.gradle contains includeBuild for react-native"
-        else
-          echo "WARNING: settings.gradle may not have correct includeBuild"
-          echo "Current settings.gradle:"
-          cat settings.gradle
-        fi
-        
-        # Create keystore if needed
-        if [ ! -f "app/debug.keystore" ]; then
-          echo "Creating debug keystore..."
-          keytool -genkeypair -v -storetype PKCS12 \
-            -keystore app/debug.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US" 2>&1
-        fi
+        npm install --legacy-peer-deps
         
     - name: Build APK
-      id: build_apk
       working-directory: ${{ env.PROJECT_DIR }}/android
       env:
         ANDROID_HOME: ${{ env.ANDROID_HOME }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
-        GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false'
       run: |
-        echo "=== Building APK ==="
-        echo "Working in: $(pwd)"
-        
-        echo "Cleaning..."
-        ./gradlew clean --no-daemon 2>&1 | tail -10 || echo "Clean completed with warnings"
-        
-        echo ""
-        echo "Building debug APK..."
-        
-        # Run build and capture output
-        ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
-        BUILD_EXIT=${PIPESTATUS[0]}
-        
-        echo ""
-        echo "=== Build command completed with exit code: $BUILD_EXIT ==="
-        echo ""
-        
-        # Always check for BUILD FAILED in log first
-        if grep -qi "BUILD FAILED" build.log; then
-          echo "✗ BUILD FAILED detected in log!"
-          echo ""
-          echo "=== FIRST ERROR IN LOG ==="
-          grep -n -iE "error|failed|exception" build.log | head -20 || true
-          echo ""
-          echo "=== BUILD FAILED SECTION (context around FAILED) ==="
-          grep -B 10 -A 20 "BUILD FAILED" build.log | head -40 || true
-          echo ""
-          echo "=== PLUGIN SPECIFIC ERRORS ==="
-          grep -iE "react-native-gradle-plugin|ModuleVersionNotFoundException|Could not find|Cannot resolve" build.log | tail -15 || true
-          echo ""
-          echo "=== LAST 100 LINES OF LOG ==="
-          tail -100 build.log || true
-          exit 1
-        fi
-        
-        # Check exit code
-        if [ $BUILD_EXIT -ne 0 ]; then
-          echo "✗ Build failed with exit code: $BUILD_EXIT (but no BUILD FAILED in log)"
-          echo ""
-          echo "=== FIRST ERRORS IN LOG ==="
-          grep -n -iE "error|failed|exception" build.log | head -20 || true
-          echo ""
-          echo "=== LAST 150 LINES OF LOG ==="
-          tail -150 build.log || true
-          exit 1
-        fi
-        
-        # Verify APK was created
-        if [ ! -d "app/build/outputs/apk/debug" ]; then
-          echo "✗ Build reported success but APK directory not found!"
-          echo "Checking app/build structure:"
-          find app/build -type d 2>/dev/null | head -20 || echo "app/build does not exist"
-          echo ""
-          echo "=== BUILD LOG (last 100 lines) ==="
-          tail -100 build.log || true
-          exit 1
-        fi
-        
-        echo ""
-        echo "✓ Build successful!"
-        echo "APK directory contents:"
-        ls -lah app/build/outputs/apk/debug/
-        echo "variant=debug" >> $GITHUB_OUTPUT
-        set +o pipefail
-        
-    - name: Upload build logs
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-logs
-        path: ${{ env.PROJECT_DIR }}/android/build.log
-        if-no-files-found: ignore
-        retention-days: 7
-        
-    - name: Find and upload APK
-      working-directory: ${{ env.PROJECT_DIR }}
-      run: |
-        echo "=== Finding APK ==="
-        
-        APK_PATH=""
-        
-        # Try debug APK first
-        if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-          APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
-          echo "✓ Found debug APK"
-        elif [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
-          APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
-          echo "✓ Found release APK"
-        else
-          echo "Searching for any APK..."
-          APK_PATH=$(find android/app/build -name "*.apk" -type f 2>/dev/null | head -n 1 || echo "")
-        fi
-        
-        if [ -z "$APK_PATH" ]; then
-          echo "ERROR: APK not found!"
-          echo "Searching android directory:"
-          find android -type f -name "*.apk" 2>/dev/null || echo "No APK files found"
-          echo ""
-          echo "Checking android/app/build:"
-          ls -la android/app/build/ 2>/dev/null || echo "android/app/build does not exist"
-          exit 1
-        fi
-        
-        echo "✓ APK found: $APK_PATH"
-        ls -lh "$APK_PATH"
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
         path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
-        if-no-files-found: error
         retention-days: 30
+
