@@ -1,7 +1,5 @@
 apply plugin: "com.android.application"
-
-// Apply React Native plugin from node_modules
-apply from: file("../../node_modules/react-native/react.gradle")
+apply plugin: "com.facebook.react"
 
 import com.android.build.OutputFile
 

@@ -14,8 +14,7 @@ buildscript {
     }
     dependencies {
         classpath("com.android.tools.build:gradle:7.4.2")
-        // React Native gradle plugin is applied via apply from in app/build.gradle
-        // No need for classpath here
+        classpath("com.facebook.react:react-native-gradle-plugin")
     }
 }
 
