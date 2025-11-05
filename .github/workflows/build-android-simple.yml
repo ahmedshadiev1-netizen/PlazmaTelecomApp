@@ -1,0 +1,48 @@
+name: Build Android APK (Simple)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Install dependencies
+      working-directory: PlazmaTelecomApp
+      run: |
+        npm install --legacy-peer-deps
+        
+    - name: Build APK
+      working-directory: PlazmaTelecomApp/android
+      env:
+        ANDROID_HOME: ${{ env.ANDROID_HOME }}
+        ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon --stacktrace
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: PlazmaTelecomApp/android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+
