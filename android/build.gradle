@@ -41,11 +41,16 @@ allprojects {
                 }
             }
         }
-        // Для Kotlin проектов
-        project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-            kotlinOptions {
-                jvmTarget = "17"
+        // Для Kotlin проектов - используем правильный класс
+        try {
+            def kotlinCompileClass = Class.forName("org.jetbrains.kotlin.gradle.tasks.KotlinCompile")
+            project.tasks.withType(kotlinCompileClass).configureEach {
+                kotlinOptions {
+                    jvmTarget = "17"
+                }
             }
+        } catch (Exception e) {
+            // Kotlin не используется в этом проекте
         }
     }
     
