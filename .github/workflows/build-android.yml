@@ -37,17 +37,11 @@ jobs:
           echo "PROJECT_DIR=." >> $GITHUB_ENV
         fi
         echo "Project directory: $PROJECT_DIR"
-        echo "Contents:"
-        ls -la $PROJECT_DIR | head -20
         
     - name: Install dependencies
       working-directory: ${{ env.PROJECT_DIR }}
       run: |
         echo "=== Installing dependencies ==="
-        echo "Working in: $(pwd)"
-        echo "Node: $(node --version)"
-        echo "NPM: $(npm --version)"
-        
         npm ci --legacy-peer-deps || npm install --legacy-peer-deps
         
         echo "Verifying installation..."
@@ -59,31 +53,17 @@ jobs:
       working-directory: ${{ env.PROJECT_DIR }}
       run: |
         echo "=== Verifying React Native setup ==="
-        echo "Checking node_modules structure..."
-        
-        # Check for react-native
-        if [ ! -d "node_modules/react-native" ]; then
-          echo "ERROR: node_modules/react-native not found!"
-          exit 1
+        echo "React Native version:"
+        cat node_modules/react-native/package.json | grep '"version"' | head -1 || true
+        echo ""
+        echo "Checking gradle plugin location..."
+        if [ -d "node_modules/react-native" ]; then
+          echo "✓ react-native found"
+          ls -la node_modules/react-native/ | grep -E "gradle|plugin" | head -5 || echo "No gradle plugin files visible"
         fi
-        
-        # Check for gradle plugin locations
-        echo "Checking for gradle plugin..."
-        if [ -d "node_modules/@react-native/gradle-plugin" ]; then
-          echo "✓ Found @react-native/gradle-plugin"
-        elif [ -d "node_modules/react-native" ]; then
-          echo "✓ Found react-native (gradle plugin should be inside)"
-        else
-          echo "WARNING: gradle plugin location not found"
-        fi
-        
-        # Check for CLI
-        if [ ! -d "node_modules/@react-native-community/cli-platform-android" ]; then
-          echo "ERROR: @react-native-community/cli-platform-android not found!"
-          exit 1
-        fi
-        
-        echo "✓ React Native setup verified"
+        echo ""
+        echo "Checking CLI:"
+        [ -d "node_modules/@react-native-community/cli-platform-android" ] && echo "✓ CLI found" || echo "✗ CLI not found"
         
     - name: Prepare Android build
       working-directory: ${{ env.PROJECT_DIR }}/android
@@ -92,14 +72,14 @@ jobs:
         chmod +x gradlew
         ./gradlew --version
         
-        # Verify gradle plugin path
-        echo "Checking gradle plugin path..."
-        if [ -d "../node_modules/@react-native/gradle-plugin" ]; then
-          echo "✓ Gradle plugin found at: ../node_modules/@react-native/gradle-plugin"
-        elif [ -d "../node_modules/react-native" ]; then
-          echo "✓ React Native found at: ../node_modules/react-native"
+        # Verify settings.gradle
+        echo "Checking settings.gradle..."
+        if grep -q "includeBuild.*react-native" settings.gradle; then
+          echo "✓ settings.gradle contains includeBuild for react-native"
         else
-          echo "WARNING: Cannot verify gradle plugin location"
+          echo "WARNING: settings.gradle may not have correct includeBuild"
+          echo "Current settings.gradle:"
+          cat settings.gradle
         fi
         
         # Create keystore if needed
@@ -124,66 +104,66 @@ jobs:
       run: |
         echo "=== Building APK ==="
         echo "Working in: $(pwd)"
-        echo "ANDROID_HOME: $ANDROID_HOME"
-        echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
         
         echo "Cleaning..."
-        ./gradlew clean --no-daemon --stacktrace 2>&1 || echo "Clean failed, continuing..."
+        ./gradlew clean --no-daemon 2>&1 | tail -10 || echo "Clean completed with warnings"
         
+        echo ""
         echo "Building debug APK..."
         set -o pipefail
         if ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log; then
-          # Check if build actually succeeded by looking for "BUILD FAILED" in log
-          if grep -q "BUILD FAILED" build.log; then
-            echo "✗ Build failed (BUILD FAILED found in log)"
-            echo ""
-            echo "=== BUILD LOG (last 150 lines) ==="
-            tail -150 build.log || true
-            echo ""
-            echo "=== ERRORS ==="
-            grep -iE "error|failed|exception|BUILD FAILED" build.log | tail -50 || true
-            exit 1
-          fi
-          
-          # Verify APK was actually created
-          if [ ! -d "app/build/outputs/apk/debug" ]; then
-            echo "✗ Build reported success but APK directory not found!"
-            echo "Checking app/build structure:"
-            find app/build -type d 2>/dev/null | head -20 || echo "app/build does not exist"
-            echo ""
-            echo "=== BUILD LOG (last 100 lines) ==="
-            tail -100 build.log || true
-            exit 1
-          fi
-          
-          echo "✓ Build successful"
-          echo "variant=debug" >> $GITHUB_OUTPUT
-          echo "APK directory found:"
-          ls -lah app/build/outputs/apk/debug/
+          BUILD_EXIT=0
         else
-          BUILD_STATUS=$?
-          echo "✗ Build failed with exit code: $BUILD_STATUS"
+          BUILD_EXIT=$?
+        fi
+        
+        # Always check for BUILD FAILED in log
+        if grep -qi "BUILD FAILED" build.log; then
           echo ""
-          echo "=== BUILD LOG (last 150 lines) ==="
-          tail -150 build.log || true
+          echo "✗ BUILD FAILED detected in log!"
           echo ""
-          echo "=== ERRORS ==="
-          grep -iE "error|failed|exception|BUILD FAILED" build.log | tail -50 || true
+          echo "=== BUILD LOG (last 200 lines) ==="
+          tail -200 build.log || true
           echo ""
-          echo "=== CHECKING REPOSITORIES ==="
-          grep -A 5 "repositories" build.gradle || echo "Could not find repositories in build.gradle"
+          echo "=== KEY ERRORS ==="
+          grep -iE "error|failed|exception|not found|cannot resolve" build.log | tail -30 || true
           echo ""
-          echo "=== CHECKING NODE_MODULES ==="
-          echo "React Native location:"
-          ls -la ../node_modules/react-native 2>/dev/null | head -5 || echo "react-native not found"
+          echo "=== PLUGIN ERRORS ==="
+          grep -iE "react-native-gradle-plugin|ModuleVersionNotFoundException" build.log | tail -10 || true
           echo ""
-          echo "Gradle plugin location:"
-          ls -la ../node_modules/@react-native/gradle-plugin 2>/dev/null | head -5 || echo "@react-native/gradle-plugin not found"
+          echo "=== SETTINGS.GRADLE ==="
+          cat settings.gradle || true
           echo ""
-          echo "=== CHECKING SETTINGS.GRADLE ==="
-          cat settings.gradle || echo "settings.gradle not readable"
+          echo "=== BUILD.GRADLE (buildscript) ==="
+          grep -A 10 "buildscript" build.gradle | head -15 || true
           exit 1
         fi
+        
+        # Check exit code
+        if [ $BUILD_EXIT -ne 0 ]; then
+          echo "✗ Build failed with exit code: $BUILD_EXIT"
+          echo ""
+          echo "=== BUILD LOG (last 200 lines) ==="
+          tail -200 build.log || true
+          exit 1
+        fi
+        
+        # Verify APK was created
+        if [ ! -d "app/build/outputs/apk/debug" ]; then
+          echo "✗ Build reported success but APK directory not found!"
+          echo "Checking app/build structure:"
+          find app/build -type d 2>/dev/null | head -20 || echo "app/build does not exist"
+          echo ""
+          echo "=== BUILD LOG (last 100 lines) ==="
+          tail -100 build.log || true
+          exit 1
+        fi
+        
+        echo ""
+        echo "✓ Build successful!"
+        echo "APK directory contents:"
+        ls -lah app/build/outputs/apk/debug/
+        echo "variant=debug" >> $GITHUB_OUTPUT
         set +o pipefail
         
     - name: Upload build logs
@@ -205,11 +185,13 @@ jobs:
         # Try debug APK first
         if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
           APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+          echo "✓ Found debug APK"
         elif [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
           APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
+          echo "✓ Found release APK"
         else
           echo "Searching for any APK..."
-          APK_PATH=$(find android/app/build -name "*.apk" -type f | head -n 1 || echo "")
+          APK_PATH=$(find android/app/build -name "*.apk" -type f 2>/dev/null | head -n 1 || echo "")
         fi
         
         if [ -z "$APK_PATH" ]; then
