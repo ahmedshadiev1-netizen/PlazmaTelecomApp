@@ -103,12 +103,26 @@ jobs:
         echo "=== Listing possible outputs ==="
         find app/build -maxdepth 4 -type f -printf '%p\n' 2>/dev/null | head -80 || true
         
+    - name: Upload build logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: |
+          ${{ env.PROJECT_DIR }}/android/build.log
+          ${{ env.PROJECT_DIR }}/android/build_debug.log
+        if-no-files-found: ignore
+        retention-days: 7
+        
     - name: Find APK
       working-directory: ${{ env.PROJECT_DIR }}
       id: find_apk
       run: |
         echo "=== Looking for APK ==="
         echo "Variant from previous step: ${{ steps.build_apk.outputs.variant }}"
+        echo "\n-- android directory --"; ls -la android || true
+        echo "\n-- android/app directory --"; ls -la android/app || true
+        echo "\n-- android/app/build (if exists) --"; ls -la android/app/build || true
 
         CANDIDATES=(
           "android/app/build/outputs/apk/release/app-release.apk"
@@ -128,7 +142,7 @@ jobs:
         done
 
         echo "No APK at expected paths. Searching recursively under android/app/build ..."
-        FOUND=$(find android/app/build -name "*.apk" -type f | head -n 1 || true)
+        FOUND=$(find android/app/build -name "*.apk" -type f 2>/dev/null | head -n 1 || true)
         if [ -n "$FOUND" ]; then
           echo "Found via search: $FOUND"
           echo "apk_path=$FOUND" >> $GITHUB_OUTPUT
