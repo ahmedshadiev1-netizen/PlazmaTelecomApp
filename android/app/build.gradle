@@ -140,6 +140,20 @@ android {
     }
 }
 
+// Заменяем все зависимости react-native на react-android
+configurations.all {
+    resolutionStrategy {
+        force "com.facebook.react:react-android:0.72.17"
+        force "com.facebook.react:hermes-android:0.72.17"
+        // Заменяем react-native:+ на react-android
+        eachDependency { DependencyResolveDetails details ->
+            if (details.requested.group == 'com.facebook.react' && details.requested.name == 'react-native') {
+                details.useTarget("com.facebook.react:react-android:0.72.17")
+            }
+        }
+    }
+}
+
 dependencies {
     // React Native 0.72.17 - указываем версию явно (без плагина)
     def reactNativeVersion = "0.72.17"
