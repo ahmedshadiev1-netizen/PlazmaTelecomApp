@@ -6,16 +6,6 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-    // For React Native 0.72, the gradle plugin is inside react-native package
-    // Try the exact path where the plugin build file should be
-    def reactNativePath = file("../node_modules/react-native")
-    def gradlePluginBuildPath = file("../node_modules/react-native/packages/react-native-gradle-plugin")
-    
-    if (reactNativePath.exists()) {
-        // For RN 0.72, include the react-native package itself
-        // The plugin is resolved from the buildscript classpath
-        includeBuild("../node_modules/react-native")
-    }
 }
 
 apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
