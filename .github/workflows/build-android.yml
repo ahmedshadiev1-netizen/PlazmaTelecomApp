@@ -91,23 +91,37 @@ jobs:
         ./gradlew clean --no-daemon --stacktrace 2>&1 || echo "Clean failed, continuing..."
         
         echo "Building debug APK..."
-        ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
-        BUILD_STATUS=${PIPESTATUS[0]}
-        
-        if [ $BUILD_STATUS -eq 0 ]; then
-          echo "✓ Build successful"
-          echo "variant=debug" >> $GITHUB_OUTPUT
+        set -o pipefail
+        if ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log; then
+          # Check if build actually succeeded by looking for "BUILD FAILED" in log
+          if grep -q "BUILD FAILED" build.log; then
+            echo "✗ Build failed (BUILD FAILED found in log)"
+            echo ""
+            echo "=== BUILD LOG (last 150 lines) ==="
+            tail -150 build.log || true
+            echo ""
+            echo "=== ERRORS ==="
+            grep -iE "error|failed|exception|BUILD FAILED" build.log | tail -50 || true
+            exit 1
+          fi
           
-          echo "Checking for APK..."
-          if [ -d "app/build/outputs/apk/debug" ]; then
-            echo "APK directory found:"
-            ls -lah app/build/outputs/apk/debug/
-          else
-            echo "WARNING: APK directory not found after successful build"
+          # Verify APK was actually created
+          if [ ! -d "app/build/outputs/apk/debug" ]; then
+            echo "✗ Build reported success but APK directory not found!"
             echo "Checking app/build structure:"
             find app/build -type d 2>/dev/null | head -20 || echo "app/build does not exist"
+            echo ""
+            echo "=== BUILD LOG (last 100 lines) ==="
+            tail -100 build.log || true
+            exit 1
           fi
+          
+          echo "✓ Build successful"
+          echo "variant=debug" >> $GITHUB_OUTPUT
+          echo "APK directory found:"
+          ls -lah app/build/outputs/apk/debug/
         else
+          BUILD_STATUS=$?
           echo "✗ Build failed with exit code: $BUILD_STATUS"
           echo ""
           echo "=== BUILD LOG (last 150 lines) ==="
@@ -120,6 +134,7 @@ jobs:
           grep -A 5 "repositories" build.gradle || echo "Could not find repositories in build.gradle"
           exit 1
         fi
+        set +o pipefail
         
     - name: Upload build logs
       if: always()
