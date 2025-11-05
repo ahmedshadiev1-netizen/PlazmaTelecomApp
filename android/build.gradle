@@ -6,14 +6,14 @@ buildscript {
         mavenCentral()
     }
     ext {
-        buildToolsVersion = "33.0.0"
+        buildToolsVersion = "34.0.0"
         minSdkVersion = 21
-        compileSdkVersion = 33
-        targetSdkVersion = 33
+        compileSdkVersion = 34
+        targetSdkVersion = 34
         ndkVersion = "23.1.7779620"
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:7.4.2")
+        classpath("com.android.tools.build:gradle:8.1.4")
         // React Native Gradle Plugin - используем версию из package.json (0.72.17)
         // Пробуем найти плагин в node_modules, если нет - используем Maven
         def reactNativeDir = file("../node_modules/react-native")
