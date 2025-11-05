@@ -4,11 +4,16 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-    // For React Native 0.72, include the react-native package build
-    // This makes the gradle plugin available to buildscript classpath
-    def reactNativeDir = file("../node_modules/react-native")
-    if (reactNativeDir.exists()) {
-        includeBuild(reactNativeDir)
+    // For React Native 0.72, the gradle plugin is in packages/react-native-gradle-plugin
+    def gradlePluginDir = file("../node_modules/react-native/packages/react-native-gradle-plugin")
+    if (gradlePluginDir.exists()) {
+        includeBuild(gradlePluginDir)
+    } else {
+        // Fallback: try the whole react-native package
+        def reactNativeDir = file("../node_modules/react-native")
+        if (reactNativeDir.exists()) {
+            includeBuild(reactNativeDir)
+        }
     }
 }
 
@@ -16,4 +21,3 @@ rootProject.name = 'PlazmaTelecomApp'
 
 apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
 include ':app'
-
