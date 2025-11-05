@@ -6,10 +6,11 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-}
-
-plugins {
-    id("com.facebook.react") version "0.72.17" apply false
+    // For React Native 0.72, the gradle plugin is in react-native package
+    def reactNativePath = file("../node_modules/react-native")
+    if (reactNativePath.exists()) {
+        includeBuild("../node_modules/react-native")
+    }
 }
 
 apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
