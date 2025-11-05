@@ -1,11 +1,56 @@
 apply plugin: "com.android.application"
-// УБРАН плагин com.facebook.react - он не работает в CI/CD
-// Используем зависимости напрямую
+
+// Для Android Studio: используем плагин (работает локально через includeBuild)
+// Для CI/CD: если плагин не найден, бандл нужно собрать вручную
+try {
+    apply plugin: "com.facebook.react"
+} catch (Exception e) {
+    println "⚠️ React Native plugin not found - will use manual bundle build"
+    println "   This is normal for CI/CD environments"
+}
 
 import com.android.build.OutputFile
 
-// Блок react {} удален - он требует плагин, который не работает в CI/CD
-// JS бандл нужно собирать вручную перед сборкой APK
+/**
+ * React Native configuration
+ * Автоматически собирает JS бандл при сборке APK
+ */
+if (plugins.hasPlugin('com.facebook.react')) {
+    react {
+        // Используем настройки по умолчанию
+        // JS бандл будет собран автоматически
+    }
+} else {
+    // Если плагин недоступен (CI/CD), создаем задачу для ручной сборки бандла
+    task bundleJsForAndroid {
+        doLast {
+            exec {
+                workingDir "../"
+                commandLine "npx", "react-native", "bundle",
+                    "--platform", "android",
+                    "--dev", "false",
+                    "--entry-file", "index.js",
+                    "--bundle-output", "android/app/src/main/assets/index.android.bundle",
+                    "--assets-dest", "android/app/src/main/res/"
+            }
+        }
+    }
+    
+    // Выполняем сборку бандла перед сборкой APK
+    tasks.whenTaskAdded { task ->
+        if (task.name == "mergeDebugAssets" || task.name == "mergeReleaseAssets") {
+            task.dependsOn bundleJsForAndroid
+        }
+    }
+    
+    // Создаем директорию для бандла
+    task createAssetsDir {
+        doLast {
+            mkdir("src/main/assets")
+        }
+    }
+    bundleJsForAndroid.dependsOn createAssetsDir
+}
 
 /**
  * Set this to true to create four separate APKs instead of one,

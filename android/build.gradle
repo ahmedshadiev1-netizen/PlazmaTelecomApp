@@ -14,8 +14,8 @@ buildscript {
     }
     dependencies {
         classpath("com.android.tools.build:gradle:7.4.2")
-        // УБРАН react-native-gradle-plugin - используем без плагина
-        // Плагин не работает в CI/CD, поэтому используем ручную настройку
+        // React Native плагин предоставляется через includeBuild в settings.gradle
+        // Для Android Studio это работает автоматически
     }
 }
 
