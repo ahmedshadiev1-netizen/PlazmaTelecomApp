@@ -110,41 +110,42 @@ jobs:
         
         echo ""
         echo "Building debug APK..."
-        set -o pipefail
-        if ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log; then
-          BUILD_EXIT=0
-        else
-          BUILD_EXIT=$?
-        fi
         
-        # Always check for BUILD FAILED in log
+        # Run build and capture output
+        ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
+        BUILD_EXIT=${PIPESTATUS[0]}
+        
+        echo ""
+        echo "=== Build command completed with exit code: $BUILD_EXIT ==="
+        echo ""
+        
+        # Always check for BUILD FAILED in log first
         if grep -qi "BUILD FAILED" build.log; then
-          echo ""
           echo "✗ BUILD FAILED detected in log!"
           echo ""
-          echo "=== BUILD LOG (last 200 lines) ==="
-          tail -200 build.log || true
+          echo "=== FIRST ERROR IN LOG ==="
+          grep -n -iE "error|failed|exception" build.log | head -20 || true
           echo ""
-          echo "=== KEY ERRORS ==="
-          grep -iE "error|failed|exception|not found|cannot resolve" build.log | tail -30 || true
+          echo "=== BUILD FAILED SECTION (context around FAILED) ==="
+          grep -B 10 -A 20 "BUILD FAILED" build.log | head -40 || true
           echo ""
-          echo "=== PLUGIN ERRORS ==="
-          grep -iE "react-native-gradle-plugin|ModuleVersionNotFoundException" build.log | tail -10 || true
+          echo "=== PLUGIN SPECIFIC ERRORS ==="
+          grep -iE "react-native-gradle-plugin|ModuleVersionNotFoundException|Could not find|Cannot resolve" build.log | tail -15 || true
           echo ""
-          echo "=== SETTINGS.GRADLE ==="
-          cat settings.gradle || true
-          echo ""
-          echo "=== BUILD.GRADLE (buildscript) ==="
-          grep -A 10 "buildscript" build.gradle | head -15 || true
+          echo "=== LAST 100 LINES OF LOG ==="
+          tail -100 build.log || true
           exit 1
         fi
         
         # Check exit code
         if [ $BUILD_EXIT -ne 0 ]; then
-          echo "✗ Build failed with exit code: $BUILD_EXIT"
+          echo "✗ Build failed with exit code: $BUILD_EXIT (but no BUILD FAILED in log)"
           echo ""
-          echo "=== BUILD LOG (last 200 lines) ==="
-          tail -200 build.log || true
+          echo "=== FIRST ERRORS IN LOG ==="
+          grep -n -iE "error|failed|exception" build.log | head -20 || true
+          echo ""
+          echo "=== LAST 150 LINES OF LOG ==="
+          tail -150 build.log || true
           exit 1
         fi
         
