@@ -91,7 +91,10 @@ jobs:
         ./gradlew clean --no-daemon --stacktrace 2>&1 || echo "Clean failed, continuing..."
         
         echo "Building debug APK..."
-        if ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log; then
+        ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
+        BUILD_STATUS=${PIPESTATUS[0]}
+        
+        if [ $BUILD_STATUS -eq 0 ]; then
           echo "✓ Build successful"
           echo "variant=debug" >> $GITHUB_OUTPUT
           
@@ -99,15 +102,22 @@ jobs:
           if [ -d "app/build/outputs/apk/debug" ]; then
             echo "APK directory found:"
             ls -lah app/build/outputs/apk/debug/
+          else
+            echo "WARNING: APK directory not found after successful build"
+            echo "Checking app/build structure:"
+            find app/build -type d 2>/dev/null | head -20 || echo "app/build does not exist"
           fi
         else
-          echo "✗ Build failed"
+          echo "✗ Build failed with exit code: $BUILD_STATUS"
           echo ""
-          echo "=== BUILD LOG (last 100 lines) ==="
-          tail -100 build.log || true
+          echo "=== BUILD LOG (last 150 lines) ==="
+          tail -150 build.log || true
           echo ""
           echo "=== ERRORS ==="
-          grep -i "error\|failed\|exception" build.log | tail -50 || true
+          grep -iE "error|failed|exception|BUILD FAILED" build.log | tail -50 || true
+          echo ""
+          echo "=== CHECKING REPOSITORIES ==="
+          grep -A 5 "repositories" build.gradle || echo "Could not find repositories in build.gradle"
           exit 1
         fi
         
