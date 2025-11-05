@@ -57,6 +57,15 @@ jobs:
         ./gradlew --version
         echo ""
         
+        # Ensure debug.keystore exists
+        if [ ! -f "app/debug.keystore" ]; then
+          echo "Creating debug.keystore..."
+          keytool -genkeypair -v -storetype PKCS12 -keystore app/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+        else
+          echo "✓ debug.keystore already exists"
+        fi
+        echo ""
+        
         # Run build and capture exit code
         set +e
         ./gradlew assembleDebug --no-daemon --stacktrace --info 2>&1 | tee build.log
