@@ -1,27 +1,16 @@
 apply plugin: "com.android.application"
 
-// Для Android Studio: используем плагин (работает локально через includeBuild)
-// Для CI/CD: если плагин не найден, бандл нужно собрать вручную
-try {
-    apply plugin: "com.facebook.react"
-} catch (Exception e) {
-    println "⚠️ React Native plugin not found - will use manual bundle build"
-    println "   This is normal for CI/CD environments"
-}
+// НЕ используем плагин com.facebook.react - он не работает
+// Бандл уже собран вручную перед запуском Gradle (см. build-with-java17.bat)
+// Или будет собран автоматически через задачу bundleJsForAndroid ниже
 
 import com.android.build.OutputFile
 
-/**
- * React Native configuration
- * Автоматически собирает JS бандл при сборке APK
- */
-if (plugins.hasPlugin('com.facebook.react')) {
-    react {
-        // Используем настройки по умолчанию
-        // JS бандл будет собран автоматически
-    }
-} else {
-    // Если плагин недоступен (CI/CD), создаем задачу для ручной сборки бандла
+// React Native плагин не используется - бандл собран вручную
+// Проверяем наличие бандла, если нет - создаем задачу для сборки
+def bundleFile = file("src/main/assets/index.android.bundle")
+if (!bundleFile.exists()) {
+    // Бандл не найден - создаем задачу для его сборки
     task bundleJsForAndroid {
         doLast {
             exec {
@@ -50,6 +39,8 @@ if (plugins.hasPlugin('com.facebook.react')) {
         }
     }
     bundleJsForAndroid.dependsOn createAssetsDir
+} else {
+    println "✓ JS bundle already exists, skipping bundle task"
 }
 
 /**

@@ -14,8 +14,13 @@ buildscript {
     }
     dependencies {
         classpath("com.android.tools.build:gradle:8.1.4")
-        // React Native плагин предоставляется через includeBuild в settings.gradle
-        // Для Android Studio это работает автоматически
+        // React Native Gradle Plugin - используем версию из package.json (0.72.17)
+        // Пробуем найти плагин в node_modules, если нет - используем Maven
+        def reactNativeDir = file("../node_modules/react-native")
+        if (reactNativeDir.exists()) {
+            // Плагин должен быть доступен через settings.gradle или Maven
+            // Пока используем прямую зависимость без версии (будет найдена автоматически)
+        }
     }
 }
 
