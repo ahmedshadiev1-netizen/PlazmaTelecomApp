@@ -55,12 +55,52 @@ jobs:
         [ -d "node_modules/react-native" ] || (echo "ERROR: react-native not found" && exit 1)
         echo "✓ Dependencies installed"
         
+    - name: Verify React Native setup
+      working-directory: ${{ env.PROJECT_DIR }}
+      run: |
+        echo "=== Verifying React Native setup ==="
+        echo "Checking node_modules structure..."
+        
+        # Check for react-native
+        if [ ! -d "node_modules/react-native" ]; then
+          echo "ERROR: node_modules/react-native not found!"
+          exit 1
+        fi
+        
+        # Check for gradle plugin locations
+        echo "Checking for gradle plugin..."
+        if [ -d "node_modules/@react-native/gradle-plugin" ]; then
+          echo "✓ Found @react-native/gradle-plugin"
+        elif [ -d "node_modules/react-native" ]; then
+          echo "✓ Found react-native (gradle plugin should be inside)"
+        else
+          echo "WARNING: gradle plugin location not found"
+        fi
+        
+        # Check for CLI
+        if [ ! -d "node_modules/@react-native-community/cli-platform-android" ]; then
+          echo "ERROR: @react-native-community/cli-platform-android not found!"
+          exit 1
+        fi
+        
+        echo "✓ React Native setup verified"
+        
     - name: Prepare Android build
       working-directory: ${{ env.PROJECT_DIR }}/android
       run: |
         echo "=== Preparing Android build ==="
         chmod +x gradlew
         ./gradlew --version
+        
+        # Verify gradle plugin path
+        echo "Checking gradle plugin path..."
+        if [ -d "../node_modules/@react-native/gradle-plugin" ]; then
+          echo "✓ Gradle plugin found at: ../node_modules/@react-native/gradle-plugin"
+        elif [ -d "../node_modules/react-native" ]; then
+          echo "✓ React Native found at: ../node_modules/react-native"
+        else
+          echo "WARNING: Cannot verify gradle plugin location"
+        fi
         
         # Create keystore if needed
         if [ ! -f "app/debug.keystore" ]; then
@@ -132,6 +172,16 @@ jobs:
           echo ""
           echo "=== CHECKING REPOSITORIES ==="
           grep -A 5 "repositories" build.gradle || echo "Could not find repositories in build.gradle"
+          echo ""
+          echo "=== CHECKING NODE_MODULES ==="
+          echo "React Native location:"
+          ls -la ../node_modules/react-native 2>/dev/null | head -5 || echo "react-native not found"
+          echo ""
+          echo "Gradle plugin location:"
+          ls -la ../node_modules/@react-native/gradle-plugin 2>/dev/null | head -5 || echo "@react-native/gradle-plugin not found"
+          echo ""
+          echo "=== CHECKING SETTINGS.GRADLE ==="
+          cat settings.gradle || echo "settings.gradle not readable"
           exit 1
         fi
         set +o pipefail
