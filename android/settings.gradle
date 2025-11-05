@@ -4,6 +4,17 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+    // For React Native 0.72+, use @react-native/gradle-plugin
+    def gradlePluginPath = file("../node_modules/@react-native/gradle-plugin")
+    if (gradlePluginPath.exists()) {
+        includeBuild(gradlePluginPath)
+    } else {
+        // Fallback for older RN versions
+        def reactNativePath = file("../node_modules/react-native")
+        if (reactNativePath.exists()) {
+            includeBuild(reactNativePath)
+        }
+    }
 }
 
 rootProject.name = 'PlazmaTelecomApp'
