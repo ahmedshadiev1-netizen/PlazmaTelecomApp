@@ -4,6 +4,11 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+    // Include React Native Gradle plugin from node_modules
+    def reactNativeDir = file("../node_modules/react-native")
+    if (reactNativeDir.exists()) {
+        includeBuild(reactNativeDir)
+    }
 }
 
 rootProject.name = 'PlazmaTelecomApp'
