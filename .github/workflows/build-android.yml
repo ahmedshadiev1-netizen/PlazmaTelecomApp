@@ -48,15 +48,49 @@ jobs:
         ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
       run: |
         chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log || {
-          echo "Build failed, showing errors:"
-          tail -100 build.log
+        
+        echo "=== Starting Gradle build ==="
+        echo "Java version:"
+        java -version
+        echo ""
+        echo "Gradle version:"
+        ./gradlew --version
+        echo ""
+        
+        # Run build and capture exit code
+        set +e
+        ./gradlew assembleDebug --no-daemon --stacktrace --info 2>&1 | tee build.log
+        BUILD_EXIT_CODE=$?
+        set -e
+        
+        echo ""
+        echo "=== Build finished with exit code: $BUILD_EXIT_CODE ==="
+        echo ""
+        
+        # Check if build actually succeeded
+        if grep -q "BUILD SUCCESSFUL" build.log; then
+          echo "✓ Gradle reports BUILD SUCCESSFUL"
+        else
+          echo "✗ BUILD SUCCESSFUL not found in logs"
+        fi
+        
+        if grep -q "BUILD FAILED" build.log; then
+          echo "✗ BUILD FAILED found in logs!"
+          echo ""
+          echo "=== Last 200 lines of build.log ==="
+          tail -200 build.log
+          echo ""
+          echo "=== Searching for errors ==="
+          grep -i "error\|exception\|failed" build.log | tail -50 || echo "No errors found"
           exit 1
-        }
+        fi
         
         echo ""
         echo "=== Checking build outputs ==="
         echo "Current directory: $(pwd)"
+        echo ""
+        echo "Checking app/build directory:"
+        ls -la app/build/ 2>/dev/null || echo "app/build directory not found"
         echo ""
         echo "Looking for APK files:"
         find app/build -name "*.apk" -type f 2>/dev/null || echo "No APK files found"
@@ -69,6 +103,25 @@ jobs:
         echo ""
         echo "Checking app/build/outputs/apk/debug:"
         ls -la app/build/outputs/apk/debug/ 2>/dev/null || echo "debug directory not found"
+        echo ""
+        echo "Full app/build structure:"
+        find app/build -type f -name "*.apk" -o -name "*.aar" 2>/dev/null | head -20 || echo "No build artifacts found"
+        
+        # Verify APK was actually created
+        if [ ! -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+          echo ""
+          echo "✗ ERROR: APK not created despite successful build!"
+          echo "Checking Gradle tasks:"
+          ./gradlew tasks --all | grep -i assemble || echo "No assemble tasks found"
+          echo ""
+          echo "Last 100 lines of build.log:"
+          tail -100 build.log
+          exit 1
+        fi
+        
+        echo ""
+        echo "✓ APK found: app/build/outputs/apk/debug/app-debug.apk"
+        ls -lh app/build/outputs/apk/debug/app-debug.apk
         
     - name: Upload build logs
       if: always()
