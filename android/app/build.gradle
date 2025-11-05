@@ -140,15 +140,24 @@ android {
     }
 }
 
-// Заменяем все зависимости react-native на react-android
+// Заменяем все зависимости react-native на react-android и понижаем версии androidx.core
 configurations.all {
     resolutionStrategy {
         force "com.facebook.react:react-android:0.72.17"
         force "com.facebook.react:hermes-android:0.72.17"
+        // Понижаем версию androidx.core чтобы избежать требования compileSdk 35
+        force "androidx.core:core:1.12.0"
+        force "androidx.core:core-ktx:1.12.0"
         // Заменяем react-native:+ на react-android
         eachDependency { DependencyResolveDetails details ->
             if (details.requested.group == 'com.facebook.react' && details.requested.name == 'react-native') {
                 details.useTarget("com.facebook.react:react-android:0.72.17")
+            }
+            // Понижаем версию androidx.core если она выше 1.12.0
+            if (details.requested.group == 'androidx.core' && details.requested.name.startsWith('core')) {
+                if (details.requested.version && details.requested.version > '1.12.0') {
+                    details.useVersion("1.12.0")
+                }
             }
         }
     }
