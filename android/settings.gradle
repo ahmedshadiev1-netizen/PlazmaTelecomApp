@@ -6,6 +6,12 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+    // For React Native 0.72, include the react-native package build
+    // This makes the gradle plugin available to buildscript classpath
+    def reactNativeDir = file("../node_modules/react-native")
+    if (reactNativeDir.exists()) {
+        includeBuild(reactNativeDir)
+    }
 }
 
 apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
