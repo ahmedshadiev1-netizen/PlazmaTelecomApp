@@ -18,6 +18,8 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: PlazmaTelecomApp/package-lock.json
         
     - name: Setup Java
       uses: actions/setup-java@v4
@@ -33,23 +35,26 @@ jobs:
       run: |
         if [ -d "PlazmaTelecomApp" ] && [ -f "PlazmaTelecomApp/package.json" ]; then
           echo "PROJECT_DIR=PlazmaTelecomApp" >> $GITHUB_ENV
-          echo "dir=PlazmaTelecomApp" >> $GITHUB_OUTPUT
         else
           echo "PROJECT_DIR=." >> $GITHUB_ENV
-          echo "dir=." >> $GITHUB_OUTPUT
         fi
         echo "Project directory: $PROJECT_DIR"
+        echo "Contents:"
+        ls -la $PROJECT_DIR | head -20
         
     - name: Install dependencies
       working-directory: ${{ env.PROJECT_DIR }}
       run: |
         echo "=== Installing dependencies ==="
         echo "Working in: $(pwd)"
-        npm install --legacy-peer-deps
+        echo "Node: $(node --version)"
+        echo "NPM: $(npm --version)"
+        
+        npm ci --legacy-peer-deps || npm install --legacy-peer-deps
         
         echo "Verifying installation..."
-        [ -d "node_modules" ] || exit 1
-        [ -d "node_modules/react-native" ] || exit 1
+        [ -d "node_modules" ] || (echo "ERROR: node_modules not found" && exit 1)
+        [ -d "node_modules/react-native" ] || (echo "ERROR: react-native not found" && exit 1)
         echo "✓ Dependencies installed"
         
     - name: Prepare Android build
@@ -57,8 +62,9 @@ jobs:
       run: |
         echo "=== Preparing Android build ==="
         chmod +x gradlew
+        ./gradlew --version
         
-        # Create keystore
+        # Create keystore if needed
         if [ ! -f "app/debug.keystore" ]; then
           echo "Creating debug keystore..."
           keytool -genkeypair -v -storetype PKCS12 \
@@ -76,84 +82,80 @@ jobs:
       env:
         ANDROID_HOME: ${{ env.ANDROID_HOME }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
-        GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false'
+        GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false'
       run: |
-        set -e
-        echo "=== Building APK (release, fallback to debug) ==="
+        echo "=== Building APK ==="
         echo "Working in: $(pwd)"
-        ./gradlew --version
-        chmod +x ./gradlew || true
-        ./gradlew clean --no-daemon || true
-
-        echo "-- Trying assembleRelease --"
-        if ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log; then
-          echo "variant=release" >> $GITHUB_OUTPUT
-        else
-          echo "assembleRelease failed, tail log:"; tail -200 build.log || true
-          echo "-- Falling back to assembleDebug --"
-          if ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build_debug.log; then
-            echo "variant=debug" >> $GITHUB_OUTPUT
-          else
-            echo "Both assembleRelease and assembleDebug failed.";
-            tail -200 build_debug.log || true
-            exit 1
+        echo "ANDROID_HOME: $ANDROID_HOME"
+        echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
+        
+        echo "Cleaning..."
+        ./gradlew clean --no-daemon --stacktrace 2>&1 || echo "Clean failed, continuing..."
+        
+        echo "Building debug APK..."
+        if ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log; then
+          echo "✓ Build successful"
+          echo "variant=debug" >> $GITHUB_OUTPUT
+          
+          echo "Checking for APK..."
+          if [ -d "app/build/outputs/apk/debug" ]; then
+            echo "APK directory found:"
+            ls -lah app/build/outputs/apk/debug/
           fi
+        else
+          echo "✗ Build failed"
+          echo ""
+          echo "=== BUILD LOG (last 100 lines) ==="
+          tail -100 build.log || true
+          echo ""
+          echo "=== ERRORS ==="
+          grep -i "error\|failed\|exception" build.log | tail -50 || true
+          exit 1
         fi
-
-        echo "=== Listing possible outputs ==="
-        find app/build -maxdepth 4 -type f -printf '%p\n' 2>/dev/null | head -80 || true
         
     - name: Upload build logs
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: build-logs
-        path: |
-          ${{ env.PROJECT_DIR }}/android/build.log
-          ${{ env.PROJECT_DIR }}/android/build_debug.log
+        path: ${{ env.PROJECT_DIR }}/android/build.log
         if-no-files-found: ignore
         retention-days: 7
         
-    - name: Find APK
+    - name: Find and upload APK
       working-directory: ${{ env.PROJECT_DIR }}
-      id: find_apk
       run: |
-        echo "=== Looking for APK ==="
-        echo "Variant from previous step: ${{ steps.build_apk.outputs.variant }}"
-        echo "\n-- android directory --"; ls -la android || true
-        echo "\n-- android/app directory --"; ls -la android/app || true
-        echo "\n-- android/app/build (if exists) --"; ls -la android/app/build || true
-
-        CANDIDATES=(
-          "android/app/build/outputs/apk/release/app-release.apk"
-          "android/app/build/outputs/apk/release/app-release-unsigned.apk"
-          "android/app/build/outputs/apk/app-release.apk"
-          "android/app/build/outputs/apk/debug/app-debug.apk"
-        )
-
-        for path in "${CANDIDATES[@]}"; do
-          if [ -f "$path" ]; then
-            echo "apk_path=$path" >> $GITHUB_OUTPUT
-            ls -lh "$path"
-            exit 0
-          else
-            echo "Not found: $path"
-          fi
-        done
-
-        echo "No APK at expected paths. Searching recursively under android/app/build ..."
-        FOUND=$(find android/app/build -name "*.apk" -type f 2>/dev/null | head -n 1 || true)
-        if [ -n "$FOUND" ]; then
-          echo "Found via search: $FOUND"
-          echo "apk_path=$FOUND" >> $GITHUB_OUTPUT
-          ls -lh "$FOUND"
-          exit 0
+        echo "=== Finding APK ==="
+        
+        APK_PATH=""
+        
+        # Try debug APK first
+        if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+          APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+        elif [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
+          APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
+        else
+          echo "Searching for any APK..."
+          APK_PATH=$(find android/app/build -name "*.apk" -type f | head -n 1 || echo "")
         fi
-        echo "No APK files found"; exit 1
+        
+        if [ -z "$APK_PATH" ]; then
+          echo "ERROR: APK not found!"
+          echo "Searching android directory:"
+          find android -type f -name "*.apk" 2>/dev/null || echo "No APK files found"
+          echo ""
+          echo "Checking android/app/build:"
+          ls -la android/app/build/ 2>/dev/null || echo "android/app/build does not exist"
+          exit 1
+        fi
+        
+        echo "✓ APK found: $APK_PATH"
+        ls -lh "$APK_PATH"
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-release
-        path: ${{ env.PROJECT_DIR }}/${{ steps.find_apk.outputs.apk_path }}
+        name: app-debug
+        path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
+        if-no-files-found: error
         retention-days: 30
