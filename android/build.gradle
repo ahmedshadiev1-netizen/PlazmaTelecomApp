@@ -17,13 +17,6 @@ buildscript {
         // React Native плагин предоставляется через includeBuild в settings.gradle
         // Для Android Studio это работает автоматически
     }
-    
-    // Указываем Java 17 для совместимости с Gradle 8.5
-    java {
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(17)
-        }
-    }
 }
 
 allprojects {
