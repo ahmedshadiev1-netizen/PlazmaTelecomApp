@@ -14,8 +14,8 @@ buildscript {
     }
     dependencies {
         classpath("com.android.tools.build:gradle:7.4.2")
-        // Try to use react-native-gradle-plugin with version from package.json (0.72.17)
-        classpath("com.facebook.react:react-native-gradle-plugin:0.72.17")
+        // УБРАН react-native-gradle-plugin - используем без плагина
+        // Плагин не работает в CI/CD, поэтому используем ручную настройку
     }
 }
 
