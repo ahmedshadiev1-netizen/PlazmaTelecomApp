@@ -1,6 +1,7 @@
 <resources>
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <!-- Убрано rn_edit_text_material - используем стандартный Android ресурс -->
+        <!-- <item name="android:editTextBackground">@drawable/rn_edit_text_material</item> -->
     </style>
 </resources>
 
