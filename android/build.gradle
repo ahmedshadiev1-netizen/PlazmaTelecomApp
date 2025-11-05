@@ -15,6 +15,7 @@ buildscript {
     dependencies {
         classpath("com.android.tools.build:gradle:7.4.2")
         // React Native Gradle plugin is provided via includeBuild in settings.gradle
+        // No classpath needed - it's included as a composite build
     }
 }
 

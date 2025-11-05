@@ -5,8 +5,13 @@ pluginManagement {
         gradlePluginPortal()
     }
     // Include React Native Gradle plugin from node_modules
+    // For RN 0.72, the plugin is typically in react-native/packages/react-native-gradle-plugin
     def reactNativeDir = file("../node_modules/react-native")
-    if (reactNativeDir.exists()) {
+    def gradlePluginPath = file("../node_modules/react-native/packages/react-native-gradle-plugin")
+    if (gradlePluginPath.exists()) {
+        includeBuild(gradlePluginPath)
+    } else if (reactNativeDir.exists()) {
+        // Fallback: include the whole react-native directory
         includeBuild(reactNativeDir)
     }
 }
