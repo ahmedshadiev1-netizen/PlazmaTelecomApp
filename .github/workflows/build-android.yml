@@ -54,6 +54,22 @@ jobs:
           exit 1
         }
         
+        echo ""
+        echo "=== Checking build outputs ==="
+        echo "Current directory: $(pwd)"
+        echo ""
+        echo "Looking for APK files:"
+        find app/build -name "*.apk" -type f 2>/dev/null || echo "No APK files found"
+        echo ""
+        echo "Checking app/build/outputs:"
+        ls -la app/build/outputs/ 2>/dev/null || echo "outputs directory not found"
+        echo ""
+        echo "Checking app/build/outputs/apk:"
+        ls -la app/build/outputs/apk/ 2>/dev/null || echo "apk directory not found"
+        echo ""
+        echo "Checking app/build/outputs/apk/debug:"
+        ls -la app/build/outputs/apk/debug/ 2>/dev/null || echo "debug directory not found"
+        
     - name: Upload build logs
       if: always()
       uses: actions/upload-artifact@v4
@@ -62,10 +78,42 @@ jobs:
         path: ${{ env.PROJECT_DIR }}/android/build.log
         if-no-files-found: ignore
         
+    - name: Find and upload APK
+      working-directory: ${{ env.PROJECT_DIR }}
+      run: |
+        echo "=== Finding APK ==="
+        
+        # Try multiple locations
+        APK_PATH=""
+        
+        if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+          APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+        elif [ -f "$PROJECT_DIR/android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+          APK_PATH="$PROJECT_DIR/android/app/build/outputs/apk/debug/app-debug.apk"
+        else
+          echo "Searching for any APK..."
+          APK_PATH=$(find . -name "*.apk" -type f 2>/dev/null | grep -E "app.*debug|debug.*app" | head -n 1 || echo "")
+        fi
+        
+        if [ -z "$APK_PATH" ]; then
+          echo "ERROR: APK not found!"
+          echo "Searching entire project:"
+          find . -name "*.apk" -type f 2>/dev/null || echo "No APK files found"
+          echo ""
+          echo "Current directory: $(pwd)"
+          echo "Listing android directory:"
+          ls -la android/ 2>/dev/null || echo "android directory not found"
+          exit 1
+        fi
+        
+        echo "✓ APK found: $APK_PATH"
+        ls -lh "$APK_PATH"
+        echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
+        
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
-        path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
+        path: ${{ env.PROJECT_DIR }}/${{ env.APK_PATH }}
         if-no-files-found: error
         retention-days: 30
