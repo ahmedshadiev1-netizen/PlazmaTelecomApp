@@ -13,7 +13,7 @@ buildscript {
         ndkVersion = "23.1.7779620"
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:7.4.2")
+        classpath("com.android.tools.build:gradle:8.1.4")
         // React Native плагин предоставляется через includeBuild в settings.gradle
         // Для Android Studio это работает автоматически
     }
