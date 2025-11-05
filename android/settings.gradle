@@ -4,17 +4,6 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-    // For React Native 0.72, the gradle plugin is in packages/react-native-gradle-plugin
-    def gradlePluginDir = file("../node_modules/react-native/packages/react-native-gradle-plugin")
-    if (gradlePluginDir.exists()) {
-        includeBuild(gradlePluginDir)
-    } else {
-        // Fallback: try the whole react-native package
-        def reactNativeDir = file("../node_modules/react-native")
-        if (reactNativeDir.exists()) {
-            includeBuild(reactNativeDir)
-        }
-    }
 }
 
 rootProject.name = 'PlazmaTelecomApp'
