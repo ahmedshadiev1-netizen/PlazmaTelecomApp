@@ -14,10 +14,8 @@ buildscript {
     }
     dependencies {
         classpath("com.android.tools.build:gradle:7.4.2")
-        // For RN 0.72, use the plugin from react-native package directly
-        // The plugin is bundled with react-native and doesn't need includeBuild
-        // Try with version first, fallback to no version
-        classpath("com.facebook.react:react-native-gradle-plugin")
+        // React Native gradle plugin is applied via apply from in app/build.gradle
+        // No need for classpath here
     }
 }
 
