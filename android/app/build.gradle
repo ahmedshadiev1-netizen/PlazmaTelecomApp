@@ -164,17 +164,14 @@ dependencies {
     }
 }
 
-// Исключаем Expo модули из сборки
-def excludeModules = ['expo']
-
-apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); 
+// Применяем native modules, но игнорируем ошибки Expo (если есть)
 try {
-    applyNativeModulesAppBuildGradle(project, excludeModules)
-} catch (Exception e) {
-    // Если метод не поддерживает excludeModules, используем обычный способ
-    // и исключаем Expo вручную
+    apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); 
     applyNativeModulesAppBuildGradle(project)
-    // Удаляем Expo зависимости если они были добавлены
+} catch (Exception e) {
+    println "⚠️ Warning: Could not apply native modules: ${e.message}"
+    println "   Continuing without auto-linking..."
+    // Исключаем Expo зависимости если они были добавлены
     configurations.all {
         exclude group: 'expo', module: 'expo'
     }

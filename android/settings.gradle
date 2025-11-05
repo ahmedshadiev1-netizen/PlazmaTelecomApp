@@ -8,19 +8,13 @@ pluginManagement {
 
 rootProject.name = 'PlazmaTelecomApp'
 
-// Исключаем Expo из сборки, так как он не используется
-def excludeModules = ['expo']
-
-apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); 
+// Применяем native modules, но игнорируем ошибки Expo (если есть)
 try {
-    applyNativeModulesSettingsGradle(settings, excludeModules)
-} catch (Exception e) {
-    // Если метод не поддерживает excludeModules, используем обычный способ
+    apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); 
     applyNativeModulesSettingsGradle(settings)
-    // Исключаем Expo вручную
-    if (settings.findProject(':expo') != null) {
-        settings.remove(':expo')
-    }
+} catch (Exception e) {
+    println "⚠️ Warning: Could not apply native modules: ${e.message}"
+    println "   Continuing without auto-linking..."
 }
 
 include ':app'
