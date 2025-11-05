@@ -4,6 +4,10 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        // Add local maven repository for React Native gradle plugin
+        maven {
+            url = uri("${rootDir}/../node_modules/react-native/android")
+        }
     }
     ext {
         buildToolsVersion = "33.0.0"
